@@ -179,16 +179,17 @@ function updateRocks(dt) {
     rockFallCooldown -= dt;
     if (rockFallCooldown > 0) return;
     rockFallCooldown = ROCK_FALL_INTERVAL;
-    // Classic Boulder Dash rock falling logic with sideways movement
+    // Classic Boulder Dash rock/diamond falling logic with sideways movement
     for (let y = rows - 2; y >= 1; y--) {
         for (let x = 1; x < cols - 1; x++) {
             const id = index(x, y);
-            if (grid[id] !== TILE.ROCK) continue;
+            if (grid[id] !== TILE.ROCK && grid[id] !== TILE.DIAMOND) continue;
+            const isDiamond = grid[id] === TILE.DIAMOND;
             const belowId = index(x, y + 1);
             const belowBelowId = index(x, y + 2);
             // Fall straight down
             if (grid[belowId] === TILE.EMPTY) {
-                grid[belowId] = TILE.ROCK;
+                grid[belowId] = grid[id];
                 grid[id] = TILE.EMPTY;
                 if (grid[belowBelowId] === TILE.PLAYER) { playerDie(); }
                 continue;
@@ -200,7 +201,7 @@ function updateRocks(dt) {
                 (grid[belowId] === TILE.ROCK || grid[belowId] === TILE.DIAMOND) &&
                 grid[belowId] !== TILE.PLAYER
             ) {
-                grid[index(x-1, y+1)] = TILE.ROCK;
+                grid[index(x-1, y+1)] = grid[id];
                 grid[id] = TILE.EMPTY;
                 if (grid[index(x-1, y+2)] === TILE.PLAYER) { playerDie(); }
                 continue;
@@ -212,7 +213,7 @@ function updateRocks(dt) {
                 (grid[belowId] === TILE.ROCK || grid[belowId] === TILE.DIAMOND) &&
                 grid[belowId] !== TILE.PLAYER
             ) {
-                grid[index(x+1, y+1)] = TILE.ROCK;
+                grid[index(x+1, y+1)] = grid[id];
                 grid[id] = TILE.EMPTY;
                 if (grid[index(x+1, y+2)] === TILE.PLAYER) { playerDie(); }
                 continue;
@@ -265,62 +266,67 @@ requestAnimationFrame(gameTick);
 canvas.addEventListener('pointerdown', (ev) => {
     const rect = canvas.getBoundingClientRect();
     const gx = Math.floor((ev.clientX - rect.left) / tileSize), gy = Math.floor((ev.clientY - rect.top) / tileSize);
-    if (!inBounds(gx, gy)) return; dest = { x: gx, y: gy }; path = bfsPath({ x: player.x, y: player.y }, dest);
+    if (!inBounds(gx, gy)) return;
+    const clickedTile = grid[index(gx, gy)];
+    // Check if clicked tile is a boulder and player is adjacent
+    if (clickedTile === TILE.ROCK) {
+        const dx = gx - player.x;
+        const dy = gy - player.y;
+        // Only allow push if adjacent (not diagonal)
+        if ((Math.abs(dx) === 1 && dy === 0) || (Math.abs(dy) === 1 && dx === 0)) {
+            // Determine push direction
+            const pushX = gx + dx;
+            const pushY = gy + dy;
+            if (inBounds(pushX, pushY) && grid[index(pushX, pushY)] === TILE.EMPTY) {
+                // Move the rock
+                grid[index(pushX, pushY)] = TILE.ROCK;
+                grid[index(gx, gy)] = TILE.EMPTY;
+            }
+        }
+    } else {
+        // Find path to clicked empty tile
+        dest = { x: gx, y: gy };
+        path = bfsPath(player, dest);
+    }
 });
 window.addEventListener('keydown', (e) => {
-    if (e.key.startsWith('Arrow')) {
-            if (moveDir) return;
-            const dirs = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
-            if (!dirs[e.key]) return;
-            moveDir = dirs[e.key];
-            function movePlayer() {
-                const nx = player.x + moveDir[0], ny = player.y + moveDir[1];
-
-
-     const targetTile = grid[index(nx, ny)];
-                // Pushing logic: only allow pushing rocks horizontally
-                if (
-                    (moveDir[0] !== 0 && moveDir[1] === 0) && // horizontal move
-                    targetTile === TILE.ROCK
-                ) {
-                    const pushX = nx + moveDir[0], pushY = ny;
-                    if (inBounds(pushX, pushY) && grid[index(pushX, pushY)] === TILE.EMPTY) {
-                        // Move the rock
-                        grid[index(pushX, pushY)] = TILE.ROCK;
-                        grid[index(nx, ny)] = TILE.EMPTY;
-                        // Move the player
-                        grid[index(player.x, player.y)] = TILE.EMPTY;
-                        player.x = nx; player.y = ny;
-                        grid[index(player.x, player.y)] = TILE.PLAYER;
-                        path = []; dest = null;
-                        return;
-                    }
-                }
-                // Normal movement
-                if (inBounds(nx, ny) && targetTile !== TILE.WALL && targetTile !== TILE.ROCK) {
-                    if (targetTile === TILE.DIAMOND) {
-                        score++;
-                        const scoreEl = document.getElementById('score');
-                        if (scoreEl) scoreEl.textContent = score;
-                    }
-                    grid[index(player.x, player.y)] = TILE.EMPTY;
-                    player.x = nx; player.y = ny;
-                    grid[index(player.x, player.y)] = TILE.PLAYER;
-                    path = []; dest = null;
-                }
-
+    if (moveDir !== null) return;
+    if (e.key === 'ArrowUp' || e.key === 'w') { moveDir = { x: 0, y: -1 }; }
+    else if (e.key === 'ArrowDown' || e.key === 's') { moveDir = { x: 0, y: 1 }; }
+    else if (e.key === 'ArrowLeft' || e.key === 'a') { moveDir = { x: -1, y: 0 }; }
+    else if (e.key === 'ArrowRight' || e.key === 'd') { moveDir = { x: 1, y: 0 }; }
+    if (moveDir !== null) {
+        const tx = player.x + moveDir.x;
+        const ty = player.y + moveDir.y;
+        const targetTile = grid[index(tx, ty)];
+        // Key push logic: only allow pushing rocks horizontally
+        if (
+            (moveDir.x !== 0 && moveDir.y === 0) && // horizontal move
+            targetTile === TILE.ROCK
+        ) {
+            const pushX = tx + moveDir.x;
+            const pushY = ty;
+            if (inBounds(pushX, pushY) && grid[index(pushX, pushY)] === TILE.EMPTY) {
+                // Move the rock
+                grid[index(pushX, pushY)] = TILE.ROCK;
+                grid[index(tx, ty)] = TILE.EMPTY;
+                // Move the player
+                grid[index(player.x, player.y)] = TILE.EMPTY;
+                player.x = tx; player.y = ty;
+                grid[index(player.x, player.y)] = TILE.PLAYER;
+                path = [];
+                moveDir = null;
+                return;
             }
-            movePlayer();
-            moveInterval = setInterval(movePlayer, 120);
+        }
+        // Normal movement
+        const newPath = bfsPath(player, { x: tx, y: ty });
+        if (newPath.length > 0) {
+            path = newPath;
+            moveDir = null;
+        } else {
+            moveDir = null;
+        }
     }
 });
-window.addEventListener('keyup', function (e) {
-    if (e.key.startsWith('Arrow')) {
-        moveDir = null;
-        if (moveInterval) clearInterval(moveInterval);
-        moveInterval = null;
-    }
-}, false);
-
-
-resetBtn.addEventListener('click', () => { createLevel(); lives = 3; livesEl.textContent = lives; path = []; dest = null; });
+resetBtn.addEventListener('click', () => { location.reload(); });
