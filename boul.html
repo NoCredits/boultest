@@ -13,7 +13,17 @@
     <span id="score">0</span>
     <div style="margin-left:auto">Lives: <span id="lives">3</span></div>
   </div>
+  <div style="margin:10px 0;">
+    <textarea id="levelJson" rows="4" cols="60" placeholder="Paste level JSON here"></textarea><br>
+    <button id="loadLevelBtn">Load Level</button>
+  </div>
   <canvas id="c"></canvas>
 <script src="boul.js"></script>
+<script>
+document.getElementById('loadLevelBtn').onclick = function() {
+  const json = document.getElementById('levelJson').value;
+  window.loadLevel(json);
+};
+</script>
 </body>
 </html>
