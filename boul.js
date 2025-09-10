@@ -23,7 +23,7 @@ function createLevel() {
     for (let y = 2; y < rows - 2; y++) {
         for (let x = 2; x < cols - 2; x++) {
             grid[index(x, y)] = Math.random() < 0.12 ? TILE.EMPTY : TILE.DIRT;
-            if (Math.random() < 0.03) grid[index(x, y)] = TILE.ROCK;
+            if (Math.random() < 0.08    ) grid[index(x, y)] = TILE.ROCK;
             if (Math.random() < 0.01) grid[index(x, y)] = TILE.DIAMOND;
         }
     }
@@ -43,33 +43,43 @@ function draw() {
                 const tile = grid[index(x, y)];
                 const px = x * tileSize, py = y * tileSize;
                 // Background
-                ctx.fillStyle = TILE_COLORS[tile] || '#f0f';
-                ctx.beginPath();
-                ctx.moveTo(px + 4, py);
-                ctx.lineTo(px + tileSize - 4, py);
-                ctx.quadraticCurveTo(px + tileSize, py, px + tileSize, py + 4);
-                ctx.lineTo(px + tileSize, py + tileSize - 4);
-                ctx.quadraticCurveTo(px + tileSize, py + tileSize, px + tileSize - 4, py + tileSize);
-                ctx.lineTo(px + 4, py + tileSize);
-                ctx.quadraticCurveTo(px, py + tileSize, px, py + tileSize - 4);
-                ctx.lineTo(px, py + 4);
-                ctx.quadraticCurveTo(px, py, px + 4, py);
-                ctx.closePath();
-                ctx.fill();
+                if (tile === TILE.ROCK) {
+                    // Draw black background for rocks
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(px, py, tileSize, tileSize);
+                } else {
+                    ctx.fillStyle = TILE_COLORS[tile] || '#f0f';
+                    ctx.beginPath();
+                    ctx.moveTo(px + 4, py);
+                    ctx.lineTo(px + tileSize - 4, py);
+                    ctx.quadraticCurveTo(px + tileSize, py, px + tileSize, py + 4);
+                    ctx.lineTo(px + tileSize, py + tileSize - 4);
+                    ctx.quadraticCurveTo(px + tileSize, py + tileSize, px + tileSize - 4, py + tileSize);
+                    ctx.lineTo(px + 4, py + tileSize);
+                    ctx.quadraticCurveTo(px, py + tileSize, px, py + tileSize - 4);
+                    ctx.lineTo(px, py + 4);
+                    ctx.quadraticCurveTo(px, py, px + 4, py);
+                    ctx.closePath();
+                    ctx.fill();
+                }
                 // Add highlights and details
                 if (tile === TILE.ROCK) {
-                    // Rock: radial gradient and highlight
-                    const grad = ctx.createRadialGradient(px + tileSize / 2, py + tileSize / 2, 4, px + tileSize / 2, py + tileSize / 2, tileSize / 2);
+                    // Rock: perfectly round, radial gradient and highlight
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(px + tileSize / 2, py + tileSize / 2, tileSize / 2.2, 0, 2 * Math.PI);
+                    ctx.closePath();
+                    const grad = ctx.createRadialGradient(px + tileSize / 2, py + tileSize / 2, 4, px + tileSize / 2, py + tileSize / 2, tileSize / 2.2);
                     grad.addColorStop(0, '#bbb');
                     grad.addColorStop(1, TILE_COLORS[TILE.ROCK]);
                     ctx.fillStyle = grad;
-                    ctx.beginPath();
-                    ctx.arc(px + tileSize / 2, py + tileSize / 2, tileSize / 2.5, 0, 2 * Math.PI);
                     ctx.fill();
-                    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                    // Highlight
+                    ctx.fillStyle = 'rgba(255,255,255,0.25)';
                     ctx.beginPath();
-                    ctx.arc(px + tileSize / 2 - 4, py + tileSize / 2 - 4, 5, 0, 2 * Math.PI);
+                    ctx.arc(px + tileSize / 2 - 5, py + tileSize / 2 - 5, 5, 0, 2 * Math.PI);
                     ctx.fill();
+                    ctx.restore();
                 } else if (tile === TILE.DIAMOND) {
                     // Diamond: blue gradient and sparkle
                     const grad = ctx.createLinearGradient(px, py, px + tileSize, py + tileSize);
@@ -169,17 +179,43 @@ function updateRocks(dt) {
     rockFallCooldown -= dt;
     if (rockFallCooldown > 0) return;
     rockFallCooldown = ROCK_FALL_INTERVAL;
-    // Classic Boulder Dash rock falling logic
+    // Classic Boulder Dash rock falling logic with sideways movement
     for (let y = rows - 2; y >= 1; y--) {
         for (let x = 1; x < cols - 1; x++) {
             const id = index(x, y);
             if (grid[id] !== TILE.ROCK) continue;
             const belowId = index(x, y + 1);
             const belowBelowId = index(x, y + 2);
+            // Fall straight down
             if (grid[belowId] === TILE.EMPTY) {
                 grid[belowId] = TILE.ROCK;
                 grid[id] = TILE.EMPTY;
                 if (grid[belowBelowId] === TILE.PLAYER) { playerDie(); }
+                continue;
+            }
+            // Fall left (only if supported by rock or diamond)
+            if (
+                grid[index(x-1, y)] === TILE.EMPTY &&
+                grid[index(x-1, y+1)] === TILE.EMPTY &&
+                (grid[belowId] === TILE.ROCK || grid[belowId] === TILE.DIAMOND) &&
+                grid[belowId] !== TILE.PLAYER
+            ) {
+                grid[index(x-1, y+1)] = TILE.ROCK;
+                grid[id] = TILE.EMPTY;
+                if (grid[index(x-1, y+2)] === TILE.PLAYER) { playerDie(); }
+                continue;
+            }
+            // Fall right (only if supported by rock or diamond)
+            if (
+                grid[index(x+1, y)] === TILE.EMPTY &&
+                grid[index(x+1, y+1)] === TILE.EMPTY &&
+                (grid[belowId] === TILE.ROCK || grid[belowId] === TILE.DIAMOND) &&
+                grid[belowId] !== TILE.PLAYER
+            ) {
+                grid[index(x+1, y+1)] = TILE.ROCK;
+                grid[id] = TILE.EMPTY;
+                if (grid[index(x+1, y+2)] === TILE.PLAYER) { playerDie(); }
+                continue;
             }
         }
     }
