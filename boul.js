@@ -275,8 +275,30 @@ window.addEventListener('keydown', (e) => {
             moveDir = dirs[e.key];
             function movePlayer() {
                 const nx = player.x + moveDir[0], ny = player.y + moveDir[1];
-                if (inBounds(nx, ny) && grid[index(nx, ny)] !== TILE.WALL && grid[index(nx, ny)] !== TILE.ROCK) {
-                    if (grid[index(nx, ny)] === TILE.DIAMOND) {
+
+
+     const targetTile = grid[index(nx, ny)];
+                // Pushing logic: only allow pushing rocks horizontally
+                if (
+                    (moveDir[0] !== 0 && moveDir[1] === 0) && // horizontal move
+                    targetTile === TILE.ROCK
+                ) {
+                    const pushX = nx + moveDir[0], pushY = ny;
+                    if (inBounds(pushX, pushY) && grid[index(pushX, pushY)] === TILE.EMPTY) {
+                        // Move the rock
+                        grid[index(pushX, pushY)] = TILE.ROCK;
+                        grid[index(nx, ny)] = TILE.EMPTY;
+                        // Move the player
+                        grid[index(player.x, player.y)] = TILE.EMPTY;
+                        player.x = nx; player.y = ny;
+                        grid[index(player.x, player.y)] = TILE.PLAYER;
+                        path = []; dest = null;
+                        return;
+                    }
+                }
+                // Normal movement
+                if (inBounds(nx, ny) && targetTile !== TILE.WALL && targetTile !== TILE.ROCK) {
+                    if (targetTile === TILE.DIAMOND) {
                         score++;
                         const scoreEl = document.getElementById('score');
                         if (scoreEl) scoreEl.textContent = score;
@@ -286,6 +308,7 @@ window.addEventListener('keydown', (e) => {
                     grid[index(player.x, player.y)] = TILE.PLAYER;
                     path = []; dest = null;
                 }
+
             }
             movePlayer();
             moveInterval = setInterval(movePlayer, 120);
