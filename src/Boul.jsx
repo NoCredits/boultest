@@ -11,11 +11,8 @@ export default function Boul() {
   const ROCK_FALL_INTERVAL = 100;
   const keysPressedRef = useRef(new Set());  // Tracks pressed keys (e.g., 'ArrowUp')
   const keyRepeatTimersRef = useRef(new Map());  // Per-key timers for custom repeat
-  const selectedDestRef = useRef(null);  // New: Tracks the selected destination for double-click
-//   const isPathConfirmed = useRef(false); // New: Tracks if the path is confirmed
-    
-// const lastClickTimeRef = useRef(0);
-// const CLICK_COOLDOWN_MS = 80; // ignore repeated invocations within this window
+  const selectedDestRef = useRef(null);  // Tracks the selected destination for double-click
+  const isPathActiveRef = useRef(false);  // Controls if path is being followed
 
   const canvasRef = useRef(null);
   const [score, setScore] = useState(0);
@@ -151,6 +148,7 @@ export default function Boul() {
     setScore(0);
     setLives(3);
     selectedDestRef.current = null;  // Reset selected destination on new level
+    isPathActiveRef.current = false;
   }
 
   function draw() {
@@ -345,6 +343,8 @@ export default function Boul() {
 
     pathRef.current = [];  // Clear pathfinding
     destRef.current = null;
+    selectedDestRef.current = null; // Clear selected destination on key press
+    isPathActiveRef.current = false;
     moveDirRef.current = dir;
     doMove(key);
 
@@ -387,25 +387,13 @@ export default function Boul() {
     window.addEventListener('keyup', handleKeyUp);
 
     function handleCanvasClick(e) {
-
       e.preventDefault();
-      
       const rect = canvas.getBoundingClientRect();
       const gx = Math.floor((e.clientX - rect.left) / tileSize);
       const gy = Math.floor((e.clientY - rect.top) / tileSize);
-
-              console.log('Top of handler:', {
-                gx,
-                gy,
-                selected: selectedDestRef.current,
-                path: pathRef.current
-                });
-
       if (!inBounds(gx, gy)) return;
       const clickedTile = gridRef.current[index(gx, gy)];
       const player = playerRef.current;
-
-      console.log('Click:', gx, gy)
 
       if (clickedTile === TILE.ROCK) {
         const dx = gx - player.x;
@@ -424,63 +412,16 @@ export default function Boul() {
         }
       } else {
         // Check if this is a second click on the same spot
-        if (selectedDestRef.current && selectedDestRef.current.x === gx && selectedDestRef.current.y === gy ) {
-            console.log('Secondt click' )
-            console.log('selecte:', selectedDestRef.current )
-           
-          // Second click: Execute the path
-          pathRef.current.forEach(p => {
-            const t = gridRef.current[index(p.x, p.y)];
-            if (t === TILE.WALL || t === TILE.ROCK) {
-              pathRef.current = [];
-              destRef.current = null;
-              selectedDestRef.current = null;
-              return;
-            }
-            if (t === TILE.DIAMOND) {
-              setScore(s => {
-                const newScore = s + 1;
-                if (!gridRef.current.includes(TILE.DIAMOND)) {
-                  const canvas = canvasRef.current;
-                  if (canvas) {
-                    const ctx = canvas.getContext('2d');
-                    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillStyle = 'white';
-                    ctx.font = '48px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('Level Complete! Score: ' + newScore, canvas.width / 2, canvas.height / 2);
-                  }
-                  setTimeout(() => {
-                    createLevel();
-                    draw();
-                  }, 2000);
-                }
-                return newScore;
-              });
-            }
-            gridRef.current[index(player.x, player.y)] = TILE.EMPTY;
-            markDirty(player.x, player.y);
-            player.x = p.x; player.y = p.y;
-            gridRef.current[index(player.x, player.y)] = TILE.PLAYER;
-            markDirty(player.x, player.y);
-            draw();
-          });
-          pathRef.current = [];
-          destRef.current = null;
-          selectedDestRef.current = null;  // Reset after execution
+        if (selectedDestRef.current && selectedDestRef.current.x === gx && selectedDestRef.current.y === gy) {
+          // Second click: Activate path following
+          isPathActiveRef.current = true;
+          selectedDestRef.current = null;
         } else {
-          // First click: Show the path
-          console.log('first click' )
-          
-            console.log('selecte:', selectedDestRef.current )
+          // First click: Preview the path
           destRef.current = { x: gx, y: gy };
           pathRef.current = bfsPath(playerRef.current, destRef.current);
-          //selectedDestRef.current = { x: gx, y: gy };  // Mark as selected
-          setTimeout(() => {
-            selectedDestRef.current = { x: gx, y: gy };
-            }, 20);
-            
+          isPathActiveRef.current = false;
+          selectedDestRef.current = { x: gx, y: gy };
           draw();
         }
       }
@@ -585,13 +526,15 @@ export default function Boul() {
     pathRef.current = [];
     destRef.current = null;
     selectedDestRef.current = null;  // Reset selected destination on death
+    isPathActiveRef.current = false;
   }
 
   // Step player along path (used in game loop, but overridden by double-click)
   function stepPlayer() {
-    console.log('Stepping player along path:', pathRef.current);
-    console.log('selectedDestRef:', selectedDestRef.current);
-    if (pathRef.current.length === 0) return;
+    if (pathRef.current.length === 0) {
+      isPathActiveRef.current = false;
+      return;
+    }
     const next = pathRef.current.shift();
     const grid = gridRef.current;
     const t = grid[index(next.x, next.y)];
@@ -599,6 +542,7 @@ export default function Boul() {
       pathRef.current = [];
       destRef.current = null;
       selectedDestRef.current = null;
+      isPathActiveRef.current = false;
       return;
     }
     if (t === TILE.DIAMOND) {
@@ -607,6 +551,7 @@ export default function Boul() {
         pathRef.current = [];
         destRef.current = null;
         selectedDestRef.current = null;
+        isPathActiveRef.current = false;
         setTimeout(() => {
           createLevel();
           draw();
@@ -631,7 +576,7 @@ export default function Boul() {
       updateRocks(dt);
       moveCooldownRef.current -= dt;
       if (moveCooldownRef.current <= 0) {
-        if (pathRef.current.length > 0) {
+        if (isPathActiveRef.current && pathRef.current.length > 0) {
           stepPlayer();
           moveCooldownRef.current = 120;
         }
@@ -654,19 +599,21 @@ export default function Boul() {
   const handleReset = () => {
     createLevel();
     draw();
+    isPathActiveRef.current = false;
   };
 
   // Load level handler (stub)
   const handleLoadLevel = () => {
     createLevel();
     draw();
+    isPathActiveRef.current = false;
   };
 
   return (
     <div>
       <div id="ui">
         <button id="resetBtn" onClick={handleReset}>Reset</button>
-        <div>Click once to show path, click again on the same spot to move. Arrow keys also work.</div> {/* Updated instruction */}
+        <div>Click once to show path, click again on same spot to follow it. Arrow keys also work.</div>
         <span id="score">{score}</span>
         <div style={{ marginLeft: 'auto' }}>Lives: <span id="lives">{lives}</span></div>
         <div>
