@@ -1,0 +1,18 @@
+
+export const GameVals = {
+   TILE : { EMPTY: 0, WALL: 1, DIRT: 2, ROCK: 3, DIAMOND: 4, PLAYER: 5 },
+
+   TILE_COLORS : {
+        0: '#000',
+        1: '#444',
+        2: '#8b5a2b',
+        3: '#888',
+        4: '#0ff',
+        5: '#ff0'
+    },
+
+  tileSize: 40,
+  cols: 28,
+  rows: 20
+
+}
