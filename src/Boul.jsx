@@ -223,32 +223,94 @@ export default function Boul() {
             else if (e.key === 'ArrowRight') dx = 1;
             if (dx !== 0 || dy !== 0) {
                 const nx = player.x + dx, ny = player.y + dy;
-                if (inBounds(nx, ny) && gridRef.current[index(nx, ny)] !== TILE.WALL) {
-                    gridRef.current[index(player.x, player.y)] = TILE.EMPTY;
-                    player.x = nx; player.y = ny;
-                    gridRef.current[index(player.x, player.y)] = TILE.PLAYER;
-                    markDirty(player.x, player.y);  // Old position
-                    markDirty(nx, ny);             // New position
-                    draw();
+                const targetTile =  gridRef.current[index(nx, ny)];
+                if (inBounds(nx, ny)) {
+                    if ( targetTile === TILE.EMPTY || targetTile === TILE.DIRT ) {
+                        gridRef.current[index(player.x, player.y)] = TILE.EMPTY;
+                        player.x = nx; player.y = ny;
+                        gridRef.current[index(player.x, player.y)] = TILE.PLAYER;
+                        markDirty(player.x, player.y);  // Old position
+                        markDirty(nx, ny);             // New position
+                        draw();
+                    }
+                    if ( targetTile === TILE.DIAMOND  ) {
+                        gridRef.current[index(player.x, player.y)] = TILE.EMPTY;
+                        player.x = nx; player.y = ny;
+                        gridRef.current[index(player.x, player.y)] = TILE.PLAYER;
+                        markDirty(player.x, player.y);  // Old position
+                        markDirty(nx, ny);             // New position
+                        draw();
+                    }
+                    if ( targetTile == TILE.ROCK && dx !== 0 && dy === 0) {
+                        const pushX = nx + dx;
+                        const pushY = ny + dy;
+                        if (inBounds(pushX, pushY) &&  gridRef.current[index(pushX, pushY)] === TILE.EMPTY) {
+                            gridRef.current[index(pushX, pushY)] = TILE.ROCK;
+                            gridRef.current[index(player.x, player.y)] = TILE.EMPTY;
+                            player.x = nx; player.y = ny;
+                            gridRef.current[index(player.x, player.y)] = TILE.PLAYER;
+                            markDirty(pushX, pushY);  // new rock position
+                            markDirty(player.x, player.y);  // Old position
+                            markDirty(nx, ny);             // New position
+                            draw();
+                        }
+                    }
                 }
             }
         }
         window.addEventListener('keydown', handleKeyDown);
 
-        function handleCanvasClick(e) {
-            const rect = canvas.getBoundingClientRect();
-            const x = Math.floor((e.clientX - rect.left) / tileSize);
-            const y = Math.floor((e.clientY - rect.top) / tileSize);
-            if (inBounds(x, y) && gridRef.current[index(x, y)] !== TILE.WALL) {
-                const player = playerRef.current;
-                gridRef.current[index(player.x, player.y)] = TILE.EMPTY;
-                player.x = x; player.y = y;
-                gridRef.current[index(player.x, player.y)] = TILE.PLAYER;
-                markDirty(player.x, player.y);  // Old position
-                markDirty(x, y);               // New position
-                draw();
-            }
-        }
+        // function handleCanvasClick(e) {
+        //     const rect = canvas.getBoundingClientRect();
+        //     const x = Math.floor((e.clientX - rect.left) / tileSize);
+        //     const y = Math.floor((e.clientY - rect.top) / tileSize);
+        //     if (inBounds(x, y) && gridRef.current[index(x, y)] !== TILE.WALL) {
+        //         const player = playerRef.current;
+        //         gridRef.current[index(player.x, player.y)] = TILE.EMPTY;
+        //         player.x = x; player.y = y;
+        //         gridRef.current[index(player.x, player.y)] = TILE.PLAYER;
+        //         markDirty(player.x, player.y);  // Old position
+        //         markDirty(x, y);               // New position
+        //         draw();
+        //     }
+        // }
+        // Update the handleCanvasClick in the first useEffect
+function handleCanvasClick(e) {
+  e.preventDefault(); // Prevent default for pointerdown
+  const rect = canvas.getBoundingClientRect();
+  const gx = Math.floor((e.clientX - rect.left) / tileSize);
+  const gy = Math.floor((e.clientY - rect.top) / tileSize);
+  if (!inBounds(gx, gy)) return;
+  const clickedTile = gridRef.current[index(gx, gy)];
+  const player = playerRef.current;
+  if (clickedTile === TILE.ROCK) {
+    const dx = gx - player.x;
+    const dy = gy - player.y;
+    if ((Math.abs(dx) === 1 && dy === 0) || (Math.abs(dy) === 1 && dx === 0)) {
+      const pushX = gx + dx;
+      const pushY = gy + dy;
+      if (inBounds(pushX, pushY) && gridRef.current[index(pushX, pushY)] === TILE.EMPTY) {
+        gridRef.current[index(pushX, pushY)] = TILE.ROCK;
+        gridRef.current[index(gx, gy)] = TILE.EMPTY;
+        markDirty(gx, gy);
+        markDirty(pushX, pushY);
+        updateRocks(0); // Check for falling rocks
+        draw();
+      }
+    }
+  } else {
+    destRef.current = { x: gx, y: gy };
+    pathRef.current = bfsPath(playerRef.current, destRef.current);
+    // If you want immediate movement to the clicked tile (like original non-path version), uncomment below:
+    // gridRef.current[index(player.x, player.y)] = TILE.EMPTY;
+    // player.x = gx; player.y = gy;
+    // gridRef.current[index(player.x, player.y)] = TILE.PLAYER;
+    // markDirty(player.x, player.y);  // Old position (but since we set it after, adjust if needed)
+    // markDirty(gx, gy);               // New position
+    // draw();
+  }
+  draw(); // Always draw after handling
+}
         canvas.addEventListener('click', handleCanvasClick);
 
         // Cleanup
@@ -308,7 +370,49 @@ export default function Boul() {
             }
         }
     }
+// Add these functions after the helper functions (index, inBounds, markDirty) and before createLevel
 
+function neighbors(node) {
+  const n = [];
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  for (const d of dirs) {
+    const nx = node.x + d[0], ny = node.y + d[1];
+    if (!inBounds(nx, ny)) continue;
+    const t = gridRef.current[index(nx, ny)];
+    if (t !== TILE.WALL && t !== TILE.ROCK) n.push({ x: nx, y: ny });
+  }
+  return n;
+}
+
+function bfsPath(start, goal) {
+  const q = [start];
+  const key = p => p.x + "," + p.y;
+  const parent = new Map();
+  parent.set(key(start), null);
+  while (q.length) {
+    const cur = q.shift();
+    if (cur.x === goal.x && cur.y === goal.y) break;
+    for (const n of neighbors(cur)) {
+      const k = key(n);
+      if (!parent.has(k)) {
+        parent.set(k, cur);
+        q.push(n);
+      }
+    }
+  }
+  const goalKey = key(goal);
+  if (!parent.has(goalKey)) return [];
+  const path = [];
+  let curKey = goalKey, cur = goal;
+  while (cur) {
+    path.push({ x: cur.x, y: cur.y });
+    cur = parent.get(curKey);
+    if (cur) curKey = cur.x + "," + cur.y;
+  }
+  path.reverse();
+  if (path.length > 0 && path[0].x === start.x && path[0].y === start.y) path.shift();
+  return path;
+}
     // Player death logic
     function playerDie() {
         setLives(l => l - 1);
