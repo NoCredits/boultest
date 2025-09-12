@@ -21,7 +21,8 @@ export default function Boul() {
   // Game refs
   const canvasRef = useRef(null);
   const gridRef = useRef([]);
-  const playerRef = useRef({ x: 2, y: 2 });
+  // Player state: x/y are logical tile, fx/fy are fractional for smooth animation
+  const playerRef = useRef({ x: 2, y: 2, fx: 2, fy: 2 });
   
   // Camera state
   const cameraRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0, speed: 0.1 }); // top-left tile of the viewport
@@ -42,8 +43,8 @@ export default function Boul() {
   // Initialize game
   const initializeGame = () => {
     const { grid, playerPos } = createLevel();
-    gridRef.current = grid;
-    playerRef.current = playerPos;
+  gridRef.current = grid;
+  playerRef.current = { ...playerPos, fx: playerPos.x, fy: playerPos.y };
     setScore(0);
     setLives(3);
     clearPath();
@@ -58,12 +59,14 @@ export default function Boul() {
 
   const draw = () => {
 
-    drawGame(canvasRef, gridRef, cameraRef, pathRef);
+  drawGame(canvasRef, gridRef, cameraRef, pathRef, undefined, playerRef);
   };
 
   // Game event handlers
   const handleMove = (key) => {
     unlockAudio();
+    const prevX = playerRef.current.x;
+    const prevY = playerRef.current.y;
     doMove(
       key, 
       playerRef, 
@@ -72,6 +75,9 @@ export default function Boul() {
       (newScore) => showLevelComplete(newScore),
       (dt) => updateRocks(dt, rockFallCooldownRef, gridRef, handlePlayerDie)
     );
+    // Set player fractional target to new position
+    playerRef.current.fx = prevX;
+    playerRef.current.fy = prevY;
     updateCamera(); // Update camera target after player moves
   };
 
@@ -114,11 +120,12 @@ export default function Boul() {
   };
 
   const stepPlayer = () => {
+    const prevX = playerRef.current.x;
+    const prevY = playerRef.current.y;
     stepPlayerAlongPath(
       pathRef, 
       playerRef, 
       gridRef, 
-      
       setScore,
       () => showLevelComplete(score),
       () => {
@@ -126,7 +133,10 @@ export default function Boul() {
         selectedDestRef.current = null;
       }
     );
-     updateCamera(); // Update camera target after player moves
+    // Set player fractional target to new position
+    playerRef.current.fx = prevX;
+    playerRef.current.fy = prevY;
+    updateCamera(); // Update camera target after player moves
   };
 
   // UI event handlers
@@ -275,11 +285,17 @@ function updateViewport(canvas) {
       const dt = now - lastTimeRef.current;
       lastTimeRef.current = now;
       
-      // Animate camera each frame
-      const cam = cameraRef.current;
-      const lerp = (a, b, t) => a + (b - a) * t;
-      cam.x = lerp(cam.x, cam.targetX, cam.speed);
-      cam.y = lerp(cam.y, cam.targetY, cam.speed);
+  // Animate camera each frame
+  const cam = cameraRef.current;
+  const lerp = (a, b, t) => a + (b - a) * t;
+  cam.x = lerp(cam.x, cam.targetX, cam.speed);
+  cam.y = lerp(cam.y, cam.targetY, cam.speed);
+
+  // Animate player fractional position
+  const player = playerRef.current;
+  const playerSpeed = 0.25; // Higher = faster interpolation
+  player.fx = lerp(player.fx, player.x, playerSpeed);
+  player.fy = lerp(player.fy, player.y, playerSpeed);
 
       // Update rock physics
       updateRocks(dt, rockFallCooldownRef, gridRef, handlePlayerDie);

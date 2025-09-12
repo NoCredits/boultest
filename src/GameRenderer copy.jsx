@@ -15,6 +15,9 @@ export function drawGame(canvasRef, gridRef, cameraRef, pathRef, time = performa
   const grid = gridRef.current;
   const path = pathRef.current || [];
   const cam = cameraRef.current;
+  // Support passing playerRef for smooth movement
+  const playerRef = arguments[5];
+  const player = playerRef ? playerRef.current : null;
   
   // Clear the canvas first
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -26,20 +29,29 @@ export function drawGame(canvasRef, gridRef, cameraRef, pathRef, time = performa
   const endY = Math.min(startY + VIEWPORT_HEIGHT + 2, rows);
 
   // Draw only tiles in viewport, supporting fractional camera
+  // (Removed duplicate declaration of 'player')
+  let playerDrawn = false;
   for (let mapY = Math.max(0, startY); mapY < endY; mapY++) {
     for (let mapX = Math.max(0, startX); mapX < endX; mapX++) {
       const i = mapY * cols + mapX;
       const tile = grid[i];
-      
       // Calculate screen position
       const screenX = (mapX - cam.x) * tileSize;
       const screenY = (mapY - cam.y) * tileSize;
-      
       // Skip tiles that are completely off-screen
       if (screenX < -tileSize || screenY < -tileSize || 
           screenX > canvas.width || screenY > canvas.height) continue;
-
-      drawTileOptimized(ctx, tile, screenX, screenY, grid, time, tileSize, cols, mapX, mapY);
+      // If this is the player tile, draw at fractional position
+      if (tile === TILE.PLAYER && player && !playerDrawn) {
+        const fx = player.fx !== undefined ? player.fx : player.x;
+        const fy = player.fy !== undefined ? player.fy : player.y;
+        const playerScreenX = (fx - cam.x) * tileSize;
+        const playerScreenY = (fy - cam.y) * tileSize;
+        drawPlayer(ctx, playerScreenX, playerScreenY, tileSize, time);
+        playerDrawn = true;
+      } else {
+        drawTileOptimized(ctx, tile, screenX, screenY, grid, time, tileSize, cols, mapX, mapY);
+      }
     }
   }
 
@@ -57,26 +69,31 @@ export function drawGame(canvasRef, gridRef, cameraRef, pathRef, time = performa
 
 function drawTileOptimized(ctx, tile, px, py, grid, time, tileSize, cols, mapX, mapY) {
   // For static tiles (walls, dirt), use caching
-  if (tile === TILE.WALL || tile === TILE.DIRT) {
+  if (tile === TILE.WALL || tile === TILE.DIRT || tile === TILE.EMPTY) {
     const cacheKey = `${tile}_${mapX}_${mapY}_${tileSize}`;
+    
     // Check if we have a cached version
     if (tileCache.has(cacheKey)) {
       const cachedCanvas = tileCache.get(cacheKey);
       ctx.drawImage(cachedCanvas, px, py);
       return;
     }
+    
     // Create cached version for static tiles
     if (tileCache.size < CACHE_SIZE) {
       const offscreenCanvas = new OffscreenCanvas(tileSize, tileSize);
       const offscreenCtx = offscreenCanvas.getContext('2d');
+      
       // Draw to offscreen canvas using absolute coordinates (0,0)
       drawTileToCanvas(offscreenCtx, tile, 0, 0, grid, time, tileSize, cols, mapX, mapY);
+      
       tileCache.set(cacheKey, offscreenCanvas);
       ctx.drawImage(offscreenCanvas, px, py);
       return;
     }
   }
-  // For dynamic tiles (player, diamonds, empty), draw directly
+  
+  // For dynamic tiles (player, diamonds), draw directly
   drawTileToCanvas(ctx, tile, px, py, grid, time, tileSize, cols, mapX, mapY);
 }
 
@@ -363,7 +380,68 @@ function drawWall(ctx, px, py, grid, tileSize, cols, mapX, mapY) {
   }
 }
 
+// function drawDefault(ctx, tile, px, py, tileSize, mapX, mapY) {
+//   if (tile === TILE.EMPTY) {
+//     ctx.fillStyle = '#07071a';
+//     ctx.fillRect(px, py, tileSize, tileSize);
 
+//     // Use map coordinates for consistent star positions
+//     const baseSeed = mapX * 73856093 + mapY * 19349663;
+//     for (let i = 0; i < 3; i++) {
+//       const starSeed = baseSeed + i * 83492791;
+//       const rx = px + 4 + seededRandom(starSeed) * (tileSize - 8);
+//       const ry = py + 4 + seededRandom(starSeed + 1) * (tileSize - 8);
+//       ctx.save();
+//       ctx.beginPath();
+//       ctx.arc(rx, ry, 0.7 + seededRandom(starSeed + 2) * 1.1, 0, 2 * Math.PI);
+//       ctx.fillStyle = '#fff';
+      
+//       // Static stars for cached tiles
+//       const alpha = 0.7 + seededRandom(starSeed + 3) * 0.3;
+//       ctx.globalAlpha = alpha;
+//       ctx.fill();
+//       ctx.restore();
+//     }
+//   } else {
+//     ctx.fillStyle = TILE_COLORS[tile] || '#f0f';
+//     ctx.beginPath();
+//     ctx.moveTo(px + 4, py);
+//     ctx.lineTo(px + tileSize - 4, py);
+//     ctx.quadraticCurveTo(px + tileSize, py, px + tileSize, py + 4);
+//     ctx.lineTo(px + tileSize, py + tileSize - 4);
+//     ctx.quadraticCurveTo(px + tileSize, py + tileSize, px + tileSize - 4, py + tileSize);
+//     ctx.lineTo(px + 4, py + tileSize);
+//     ctx.quadraticCurveTo(px, py + tileSize, px, py + tileSize - 4);
+//     ctx.lineTo(px, py + 4);
+//     ctx.quadraticCurveTo(px, py, px + 4, py);
+//     ctx.closePath();
+//     ctx.fill();
+//   }
+// }
+
+// function drawAnimatedStars(ctx, px, py, tileSize, time, mapX, mapY) {
+//   // Use map coordinates for consistent star positions
+//   const baseSeed = mapX * 73856093 + mapY * 19349663;
+//   for (let i = 0; i < 3; i++) {
+//     const starSeed = baseSeed + i * 83492791;
+//     const rx = px + 4 + seededRandom(starSeed) * (tileSize - 8);
+//     const ry = py + 4 + seededRandom(starSeed + 1) * (tileSize - 8);
+//     ctx.save();
+//     ctx.beginPath();
+//     ctx.arc(rx, ry, 0.7 + seededRandom(starSeed + 2) * 1.1, 0, 2 * Math.PI);
+//     ctx.fillStyle = '#fff';
+    
+//     // Animated blinking: each star has its own phase, blinks rarely
+//     const blinkPhase = Math.abs(Math.sin((time / 1200) + starSeed)) + seededRandom(starSeed + 4);
+//     let alpha = 0.7 + seededRandom(starSeed + 3) * 0.3;
+//     if (blinkPhase > 1.85) {
+//       alpha *= 0.2 + seededRandom(starSeed + 5) * 0.3; // occasional dim blink
+//     }
+//     ctx.globalAlpha = alpha;
+//     ctx.fill();
+//     ctx.restore();
+//   }
+// }
 
 function drawAnimatedStars(ctx, px, py, tileSize, time, mapX, mapY) {
   // Use map coordinates for consistent star positions
@@ -379,16 +457,9 @@ function drawAnimatedStars(ctx, px, py, tileSize, time, mapX, mapY) {
     
     // Individual random blinking: each star has its own unique timing
     const uniquePhase = starSeed * 0.001; // Convert seed to unique phase offset
-//    const blinkSpeed = 800 + (starSeed % 800); // Different blink speed per star
-//    const blinkThreshold = 1.7 + seededRandom(starSeed + 6) * 0.3; // Different threshold per star
-    const blinkThreshold = seededRandom(starSeed + 6); // 0 → 1
-
- //   const blinkPhase = Math.abs(Math.sin((time / blinkSpeed) + uniquePhase));
-
-    const phaseOffset = (starSeed % 1000) / 1000 * Math.PI * 2; // unique per star
-const blinkSpeed = 1200 + (starSeed % 1000); // slower per star
-const blinkPhase = Math.abs(Math.sin(time / blinkSpeed + phaseOffset));
-
+    const blinkSpeed = 800 + (starSeed % 800); // Different blink speed per star
+    const blinkThreshold = 1.7 + seededRandom(starSeed + 6) * 0.3; // Different threshold per star
+    const blinkPhase = Math.abs(Math.sin((time / blinkSpeed) + uniquePhase));
     
     let alpha = 0.7 + seededRandom(starSeed + 3) * 0.3;
     if (blinkPhase > blinkThreshold) {
@@ -423,7 +494,6 @@ function drawDefault(ctx, tile, px, py, tileSize, mapX, mapY) {
     ctx.fill();
   }
 }
-
 // Export function to clear cache if needed (e.g., when tile size changes)
 export function clearTileCache() {
   tileCache.clear();
