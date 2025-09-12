@@ -4,8 +4,7 @@ import { TILE, TILE_COLORS, GAME_CONFIG } from './GameConstants';
 import { seededRandom } from './GameUtils';
 
 // Cache for static tiles to avoid re-rendering
-const tileCache = new Map();
-const CACHE_SIZE = 1000; // Limit cache size to prevent memory issues
+// Removed tileCache and caching logic
 
 export function drawGame(canvasRef, gridRef, cameraRef, pathRef, time = performance.now()) {
   const { tileSize, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, cols, rows } = GAME_CONFIG;
@@ -39,7 +38,8 @@ export function drawGame(canvasRef, gridRef, cameraRef, pathRef, time = performa
       if (screenX < -tileSize || screenY < -tileSize || 
           screenX > canvas.width || screenY > canvas.height) continue;
 
-      drawTileOptimized(ctx, tile, screenX, screenY, grid, time, tileSize, cols, mapX, mapY);
+      //drawTileOptimized(ctx, tile, screenX, screenY, grid, time, tileSize, cols, mapX, mapY);
+      drawTileToCanvas(ctx, tile, screenX, screenY, grid, time, tileSize, cols, mapX, mapY);
     }
   }
 
@@ -55,30 +55,11 @@ export function drawGame(canvasRef, gridRef, cameraRef, pathRef, time = performa
   }
 }
 
-function drawTileOptimized(ctx, tile, px, py, grid, time, tileSize, cols, mapX, mapY) {
-  // For static tiles (walls, dirt), use caching
-  if (tile === TILE.WALL || tile === TILE.DIRT) {
-    const cacheKey = `${tile}_${mapX}_${mapY}_${tileSize}`;
-    // Check if we have a cached version
-    if (tileCache.has(cacheKey)) {
-      const cachedCanvas = tileCache.get(cacheKey);
-      ctx.drawImage(cachedCanvas, px, py);
-      return;
-    }
-    // Create cached version for static tiles
-    if (tileCache.size < CACHE_SIZE) {
-      const offscreenCanvas = new OffscreenCanvas(tileSize, tileSize);
-      const offscreenCtx = offscreenCanvas.getContext('2d');
-      // Draw to offscreen canvas using absolute coordinates (0,0)
-      drawTileToCanvas(offscreenCtx, tile, 0, 0, grid, time, tileSize, cols, mapX, mapY);
-      tileCache.set(cacheKey, offscreenCanvas);
-      ctx.drawImage(offscreenCanvas, px, py);
-      return;
-    }
-  }
-  // For dynamic tiles (player, diamonds, empty), draw directly
-  drawTileToCanvas(ctx, tile, px, py, grid, time, tileSize, cols, mapX, mapY);
-}
+// function drawTileOptimized(ctx, tile, px, py, grid, time, tileSize, cols, mapX, mapY) {
+//   // For static tiles (walls, dirt), use caching
+//   // Draw all tiles dynamically every frame
+//   drawTileToCanvas(ctx, tile, px, py, grid, time, tileSize, cols, mapX, mapY);
+// }
 
 function drawTileToCanvas(ctx, tile, px, py, grid, time, tileSize, cols, mapX, mapY) {
   switch (tile) {
@@ -425,6 +406,4 @@ function drawDefault(ctx, tile, px, py, tileSize, mapX, mapY) {
 }
 
 // Export function to clear cache if needed (e.g., when tile size changes)
-export function clearTileCache() {
-  tileCache.clear();
-}
+// Removed clearTileCache (no cache used)
