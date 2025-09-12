@@ -1,10 +1,10 @@
 import { TILE, GAME_CONFIG } from './GameConstants';
 import { getDirection } from './GameConstants';
-import { index, inBounds, markDirty, playDiamondSound, playMoveSound, playRockFallSound } from './GameUtils';
+import { index, inBounds, playDiamondSound, playMoveSound, playRockFallSound } from './GameUtils';
 
 const { cols, rows } = GAME_CONFIG;
 
-export function doMove(key, playerRef, gridRef, dirtyTilesRef, onScoreUpdate, onLevelComplete, updateRocks) {
+export function doMove(key, playerRef, gridRef, onScoreUpdate, onLevelComplete, updateRocks) {
   const player = playerRef.current;
 
   const dir = getDirection(key);
@@ -33,10 +33,6 @@ export function doMove(key, playerRef, gridRef, dirtyTilesRef, onScoreUpdate, on
         player.y = ty;
         gridRef.current[index(player.x, player.y)] = TILE.PLAYER;
 
-        markDirty(pushX, pushY, dirtyTilesRef);
-        markDirty(tx, ty, dirtyTilesRef);
-        markDirty(player.x - dir.x, player.y, dirtyTilesRef);
-
         updateRocks(0);
 
         // Play rock fall sound when rock moves horizontally (simulate falling)
@@ -55,12 +51,11 @@ export function doMove(key, playerRef, gridRef, dirtyTilesRef, onScoreUpdate, on
 
   // Execute move
   gridRef.current[index(player.x, player.y)] = TILE.EMPTY;
-  markDirty(player.x, player.y, dirtyTilesRef);
+
 
   player.x = tx;
   player.y = ty;
   gridRef.current[index(player.x, player.y)] = TILE.PLAYER;
-  markDirty(player.x, player.y, dirtyTilesRef);
 
   const remainingDiamonds = gridRef.current.filter(tile => tile === TILE.DIAMOND).length;
   console.log(`Remaining diamonds: ${remainingDiamonds}`);
@@ -71,7 +66,7 @@ export function doMove(key, playerRef, gridRef, dirtyTilesRef, onScoreUpdate, on
   }
 }
 
-export function stepPlayerAlongPath(pathRef, playerRef, gridRef, dirtyTilesRef, onScoreUpdate, onLevelComplete, onPathComplete) {
+export function stepPlayerAlongPath(pathRef, playerRef, gridRef,  onScoreUpdate, onLevelComplete, onPathComplete) {
   if (pathRef.current.length === 0) {
     onPathComplete();
     return;
@@ -98,12 +93,10 @@ export function stepPlayerAlongPath(pathRef, playerRef, gridRef, dirtyTilesRef, 
 
   // Move player
   grid[index(playerRef.current.x, playerRef.current.y)] = TILE.EMPTY;
-  markDirty(playerRef.current.x, playerRef.current.y, dirtyTilesRef);
 
   playerRef.current.x = next.x;
   playerRef.current.y = next.y;
   grid[index(playerRef.current.x, playerRef.current.y)] = TILE.PLAYER;
-  markDirty(playerRef.current.x, playerRef.current.y, dirtyTilesRef);
 
   // Always check for level completion after move
   const remainingDiamonds = grid.filter(tile => tile === TILE.DIAMOND).length;
@@ -116,7 +109,7 @@ export function stepPlayerAlongPath(pathRef, playerRef, gridRef, dirtyTilesRef, 
 }
 
 
-export function handlePlayerDeath(playerRef, gridRef, dirtyTilesRef, onLifeLost, onPathClear) {
+export function handlePlayerDeath(playerRef, gridRef, onLifeLost, onPathClear) {
   // Find empty space for respawn
   let respawnX = 2;
   let respawnY = 2;
@@ -138,7 +131,6 @@ export function handlePlayerDeath(playerRef, gridRef, dirtyTilesRef, onLifeLost,
   for (let i = 0; i < grid.length; i++) {
     if (grid[i] === TILE.PLAYER) {
       grid[i] = TILE.EMPTY;
-      markDirty(i % cols, Math.floor(i / cols), dirtyTilesRef);
     }
   }
 
@@ -146,7 +138,6 @@ export function handlePlayerDeath(playerRef, gridRef, dirtyTilesRef, onLifeLost,
   playerRef.current.x = respawnX;
   playerRef.current.y = respawnY;
   grid[index(playerRef.current.x, playerRef.current.y)] = TILE.PLAYER;
-  markDirty(playerRef.current.x, playerRef.current.y, dirtyTilesRef);
 
   // Clear any active paths
   onPathClear();

@@ -18,11 +18,6 @@ export function inBounds(x, y) {
   return x >= 0 && y >= 0 && x < cols && y < rows; 
 }
 
-export function markDirty(x, y, dirtyTilesRef) { 
-  if (inBounds(x, y)) {
-    dirtyTilesRef.current.add(index(x, y)); 
-  }
-}
 
 export function coordsFromIndex(idx) {
   return {

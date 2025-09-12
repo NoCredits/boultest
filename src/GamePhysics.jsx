@@ -1,9 +1,9 @@
 import { TILE, GAME_CONFIG } from './GameConstants';
-import { index, markDirty, playRockFallSound, playDiamondFallSound } from './GameUtils';
+import { index, playRockFallSound, playDiamondFallSound } from './GameUtils';
 
 const { cols, rows } = GAME_CONFIG;
 
-export function updateRocks(dt, rockFallCooldownRef, gridRef, dirtyTilesRef, onPlayerDie) {
+export function updateRocks(dt, rockFallCooldownRef, gridRef,  onPlayerDie) {
   rockFallCooldownRef.current -= dt;
   if (rockFallCooldownRef.current > 0) return;
   
@@ -15,7 +15,6 @@ export function updateRocks(dt, rockFallCooldownRef, gridRef, dirtyTilesRef, onP
     for (let x = 1; x < cols - 1; x++) {
       const id = index(x, y);
       
-      if (grid[id] === TILE.PLAYER || grid[id] === TILE.EMPTY|| grid[id] === TILE.DIAMOND) markDirty(x, y, dirtyTilesRef);
 
       // Only process rocks and diamonds
       if (grid[id] !== TILE.ROCK && grid[id] !== TILE.DIAMOND) continue;
@@ -27,8 +26,6 @@ export function updateRocks(dt, rockFallCooldownRef, gridRef, dirtyTilesRef, onP
       if (grid[belowId] === TILE.EMPTY) {
         grid[belowId] = grid[id];
         grid[id] = TILE.EMPTY;
-        markDirty(x, y, dirtyTilesRef);
-        markDirty(x, y + 1, dirtyTilesRef);
         
         // Play sound if it will hit something
         if (y + 2 < rows && grid[belowBelowId] !== TILE.EMPTY) {
@@ -47,8 +44,6 @@ export function updateRocks(dt, rockFallCooldownRef, gridRef, dirtyTilesRef, onP
       if (canRollLeft(x, y, grid)) {
         grid[index(x - 1, y + 1)] = grid[id];
         grid[id] = TILE.EMPTY;
-        markDirty(x, y, dirtyTilesRef);
-        markDirty(x - 1, y + 1, dirtyTilesRef);
         
         // Play sound
         if (grid[index(x - 1, y + 1)] === TILE.ROCK) playRockFallSound();
@@ -66,8 +61,6 @@ export function updateRocks(dt, rockFallCooldownRef, gridRef, dirtyTilesRef, onP
         // Move the rock/diamond to the right and down
         grid[index(x + 1, y + 1)] = grid[id];
         grid[id] = TILE.EMPTY;
-        markDirty(x, y, dirtyTilesRef);
-        markDirty(x + 1, y + 1, dirtyTilesRef);
 
         // Play sound for falling rock/diamond
         if (grid[index(x + 1, y + 1)] === TILE.ROCK) playRockFallSound();

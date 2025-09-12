@@ -1,9 +1,9 @@
 import { TILE, GAME_CONFIG } from './GameConstants';
-import { index, markDirty } from './GameUtils';
+import { index } from './GameUtils';
 
 const { cols, rows } = GAME_CONFIG;
 
-export function createLevel(dirtyTilesRef) {
+export function createLevel() {
   const grid = new Array(cols * rows).fill(TILE.EMPTY);
   
   // Create border walls
@@ -57,14 +57,6 @@ export function createLevel(dirtyTilesRef) {
   }
 }
   
-  
-  // Mark all tiles as dirty for initial render
-  dirtyTilesRef.current.clear();
-  for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < cols; x++) {
-      markDirty(x, y, dirtyTilesRef);
-    }
-  }
   
   return { grid, playerPos };
 }

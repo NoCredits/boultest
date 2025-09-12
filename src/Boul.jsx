@@ -22,8 +22,7 @@ export default function Boul() {
   const canvasRef = useRef(null);
   const gridRef = useRef([]);
   const playerRef = useRef({ x: 2, y: 2 });
-  const dirtyTilesRef = useRef(new Set());
-  
+    
   // Path and movement refs
   const pathRef = useRef([]);
   const selectedDestRef = useRef(null);
@@ -39,7 +38,7 @@ export default function Boul() {
 
   // Initialize game
   const initializeGame = () => {
-    const { grid, playerPos } = createLevel(dirtyTilesRef);
+    const { grid, playerPos } = createLevel();
     gridRef.current = grid;
     playerRef.current = playerPos;
     setScore(0);
@@ -54,8 +53,8 @@ export default function Boul() {
   };
 
   const draw = () => {
-      
-    drawGame(canvasRef, gridRef, pathRef, dirtyTilesRef);
+
+    drawGame(canvasRef, gridRef, pathRef);
   };
 
   // Game event handlers
@@ -65,10 +64,10 @@ export default function Boul() {
       key, 
       playerRef, 
       gridRef, 
-      dirtyTilesRef, 
+      
       setScore, 
       (newScore) => showLevelComplete(newScore),
-      (dt) => updateRocks(dt, rockFallCooldownRef, gridRef, dirtyTilesRef, handlePlayerDie)
+      (dt) => updateRocks(dt, rockFallCooldownRef, gridRef, handlePlayerDie)
     );
   };
 
@@ -76,7 +75,6 @@ export default function Boul() {
     handlePlayerDeath(
       playerRef, 
       gridRef, 
-      dirtyTilesRef, 
       () => {
         setLives(l => {
           const newLives = l - 1;
@@ -116,7 +114,7 @@ export default function Boul() {
       pathRef, 
       playerRef, 
       gridRef, 
-      dirtyTilesRef, 
+      
       setScore,
       () => showLevelComplete(),
       () => {
@@ -150,7 +148,7 @@ export default function Boul() {
       pathRef,
       selectedDestRef,
       isPathActiveRef,
-      dirtyTilesRef,
+      
       rockFallCooldownRef,
       handlePlayerDie,
       draw
@@ -196,7 +194,7 @@ export default function Boul() {
       lastTimeRef.current = now;
       
       // Update rock physics
-      updateRocks(dt, rockFallCooldownRef, gridRef, dirtyTilesRef, handlePlayerDie);
+      updateRocks(dt, rockFallCooldownRef, gridRef, handlePlayerDie);
       
       // Handle path following
       moveCooldownRef.current -= dt;
@@ -208,9 +206,7 @@ export default function Boul() {
       }
       
       // Render if needed
-      if (dirtyTilesRef.current.size > 0) {
         draw();
-      }
       
       requestAnimationFrame(tick);
     }

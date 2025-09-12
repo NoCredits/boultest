@@ -1,5 +1,5 @@
 import { TILE, GAME_CONFIG } from './GameConstants';
-import { index, inBounds, markDirty } from './GameUtils';
+import { index, inBounds } from './GameUtils';
 import { bfsPath } from './PathFinding';
 import { updateRocks } from './GamePhysics';
 
@@ -13,8 +13,7 @@ export function handleCanvasClick(
   pathRef, 
   selectedDestRef, 
   isPathActiveRef, 
-  dirtyTilesRef, 
-  rockFallCooldownRef,
+    rockFallCooldownRef,
   onPlayerDie,
   onDraw
 ) {
@@ -43,9 +42,7 @@ export function handleCanvasClick(
       if (inBounds(pushX, pushY) && gridRef.current[index(pushX, pushY)] === TILE.EMPTY) {
         gridRef.current[index(pushX, pushY)] = TILE.ROCK;
         gridRef.current[index(gx, gy)] = TILE.EMPTY;
-        markDirty(gx, gy, dirtyTilesRef);
-        markDirty(pushX, pushY, dirtyTilesRef);
-        updateRocks(0, rockFallCooldownRef, gridRef, dirtyTilesRef, onPlayerDie);
+        updateRocks(0, rockFallCooldownRef, gridRef, onPlayerDie);
         onDraw();
       }
     }

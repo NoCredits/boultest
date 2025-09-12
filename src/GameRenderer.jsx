@@ -2,9 +2,8 @@ import { TILE, TILE_COLORS, GAME_CONFIG } from './GameConstants';
 
 const { tileSize, cols, rows } = GAME_CONFIG;
 
-export function drawGame(canvasRef, gridRef, pathRef, dirtyTilesRef) {
+export function drawGame(canvasRef, gridRef, pathRef) {
 
-      // Mark all tiles as dirty for initial render
   
    
   const canvas = canvasRef.current;
@@ -12,35 +11,26 @@ export function drawGame(canvasRef, gridRef, pathRef, dirtyTilesRef) {
   
   const ctx = canvas.getContext('2d');
   const grid = gridRef.current;
-  const dirtyTiles = dirtyTilesRef.current;
   const path = pathRef.current || [];
 
-  //ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const tilesToDraw = dirtyTiles.size > 0 ? dirtyTiles : new Set([...Array(cols * rows).keys()]);
-  
-  tilesToDraw.forEach(i => {
+  // Always render all tiles
+  for (let i = 0; i < cols * rows; i++) {
     const x = i % cols;
     const y = Math.floor(i / cols);
     const tile = grid[i];
     const px = x * tileSize;
     const py = y * tileSize;
-    
-    drawTile(ctx, tile, px, py);
-
-  });
+    drawTile(ctx, tile, px, py, grid);
+  }
 
   // Draw path overlay
   ctx.fillStyle = 'rgba(255,255,0,0.3)';
   for (const p of path) {
     ctx.fillRect(p.x * tileSize, p.y * tileSize, tileSize, tileSize);
   }
-  
-  // Clear dirty tiles after rendering
-  dirtyTilesRef.current.clear();
 }
 
-function drawTile(ctx, tile, px, py) {
+function drawTile(ctx, tile, px, py, grid) {
   switch (tile) {
     case TILE.ROCK:
       drawRock(ctx, px, py);
@@ -55,7 +45,7 @@ function drawTile(ctx, tile, px, py) {
       drawPlayer(ctx, px, py);
       break;
     case TILE.WALL:
-      drawWall(ctx, px, py);
+      drawWall(ctx, px, py, grid);
       break;
     default:
       drawDefault(ctx, tile, px, py);
@@ -65,9 +55,9 @@ function drawTile(ctx, tile, px, py) {
 
 function drawRock(ctx, px, py) {
   // Black background
-  ctx.fillStyle = '#000';
-  ctx.fillRect(px, py, tileSize, tileSize);
-  
+  // ctx.fillStyle = '#000';
+  // ctx.fillRect(px, py, tileSize, tileSize);
+  drawDefault(ctx, TILE.EMPTY, px, py);
   // 3D rock effect
   ctx.save();
   ctx.beginPath();
@@ -93,6 +83,9 @@ function drawRock(ctx, px, py) {
 }
 
 function drawDiamond(ctx, px, py) {
+  // Draw starry background first
+  drawDefault(ctx, TILE.EMPTY, px, py);
+
   // Draw diamond shape only (no square background)
   const grad = ctx.createLinearGradient(px, py, px + tileSize, py + tileSize);
   grad.addColorStop(0, '#0ff');
@@ -226,11 +219,95 @@ function drawPlayer(ctx, px, py) {
   ctx.restore();
 }
 
-function drawWall(ctx, px, py) {
+function drawWall(ctx, px, py, grid) {
+  // Draw base wall (no inset, fills tile)
   ctx.fillStyle = '#333';
-  ctx.fillRect(px + 1, py + 1, tileSize - 2, tileSize - 2);
-  ctx.fillStyle = '#666';
-  ctx.fillRect(px + 1, py + 1, tileSize - 2, 6);
+  ctx.fillRect(px, py, tileSize, tileSize);
+
+  // Draw horizontal brick lines, randomly skip some for rugged look
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 2;
+  for (let y = 0; y < tileSize; y += tileSize / 3) {
+    const lineSeed = px * 73856093 + py * 19349663 + y * 12345;
+    if (seededRandom(lineSeed) > 0.18) { // ~82% chance to draw
+      ctx.beginPath();
+      ctx.moveTo(px, py + y);
+      ctx.lineTo(px + tileSize, py + y);
+      ctx.stroke();
+    }
+  }
+
+  // Draw vertical brick lines, randomly skip some for rugged look
+  for (let row = 0; row < 3; row++) {
+    let offset = (row % 2 === 0) ? tileSize / 3 / 2 : 0;
+    for (let x = offset; x < tileSize; x += tileSize / 3) {
+      const vlineSeed = px * 73856093 + py * 19349663 + row * 54321 + x * 9876;
+      if (seededRandom(vlineSeed) > 0.22) { // ~78% chance to draw
+        ctx.beginPath();
+        ctx.moveTo(px + x, py + row * tileSize / 3);
+        ctx.lineTo(px + x, py + (row + 1) * tileSize / 3);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Top highlight only if no wall above
+  const col = Math.round(px / tileSize);
+  const row = Math.round(py / tileSize);
+  const aboveIndex = (row - 1) * cols + col;
+  if (row > 0 && grid && grid[aboveIndex] !== TILE.WALL) {
+    ctx.fillStyle = '#666';
+    ctx.fillRect(px, py, tileSize, 6);
+  }
+
+  // Add random moss/leaves as irregular blobs
+  function seededRandom(seed) {
+    let x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+  }
+  const mossSeed = px * 73856093 + py * 19349663;
+  for (let i = 0; i < 3; i++) {
+    const spotSeed = mossSeed + i * 83492791;
+    const rx = px + 4 + seededRandom(spotSeed) * (tileSize - 8);
+    const ry = py + 4 + seededRandom(spotSeed + 1) * (tileSize - 8);
+    ctx.save();
+    ctx.beginPath();
+    // Draw an irregular blob using Bezier curves
+    ctx.moveTo(rx, ry);
+    for (let j = 0; j < 5; j++) {
+      const angle = (Math.PI * 2 * j) / 5;
+      const r = 3 + seededRandom(spotSeed + 10 * j) * 4;
+      const nx = rx + Math.cos(angle) * r;
+      const ny = ry + Math.sin(angle) * r;
+      ctx.lineTo(nx, ny);
+    }
+    ctx.closePath();
+    ctx.fillStyle = seededRandom(spotSeed + 3) > 0.5 ? '#3fa34d' : '#6bbf59'; // moss/leaf green
+    ctx.globalAlpha = 0.5 + seededRandom(spotSeed + 4) * 0.4;
+    ctx.fill();
+    ctx.restore();
+
+    // Optionally, add a few leaf shapes
+    if (seededRandom(spotSeed + 5) > 0.6) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(rx + seededRandom(spotSeed + 6) * 6 - 3, ry + seededRandom(spotSeed + 7) * 6 - 3, 2.5, 1.2, seededRandom(spotSeed + 8) * Math.PI, 0, 2 * Math.PI);
+      ctx.fillStyle = '#4caf50';
+      ctx.globalAlpha = 0.6;
+      ctx.fill();
+      ctx.restore();
+    }
+    // Rare berries
+    if (seededRandom(spotSeed + 20) > 0.95) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(rx + seededRandom(spotSeed + 21) * 6 - 3, ry + seededRandom(spotSeed + 22) * 6 - 3, 2.2 + seededRandom(spotSeed + 23) * 1.5, 0, 2 * Math.PI);
+      ctx.fillStyle = '#c62828'; // berry red
+      ctx.globalAlpha = 0.85;
+      ctx.fill();
+      ctx.restore();
+    }
+  }
 }
 
 function drawDefault(ctx, tile, px, py) {
