@@ -1,3 +1,5 @@
+// Camera object should support fractional position and target position for smooth scrolling
+// Example cameraRef.current = { x: float, y: float, targetX: float, targetY: float, speed: float }
 import { TILE, TILE_COLORS, GAME_CONFIG } from './GameConstants';
 import { seededRandom } from './GameUtils';
 //const { tileSize, cols, rows } = GAME_CONFIG;
@@ -5,50 +7,29 @@ import { seededRandom } from './GameUtils';
 
 export function drawGame(canvasRef, gridRef, cameraRef, pathRef, time = performance.now()) {
 
+
   const { tileSize, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, cols, rows } = GAME_CONFIG;
-
-
   const canvas = canvasRef.current;
   if (!canvas) return;
-  
   const ctx = canvas.getContext('2d');
   const grid = gridRef.current;
   const path = pathRef.current || [];
-
-  
-  
   const cam = cameraRef.current;
   // Clear the canvas first
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-
-  // // Always render all tiles
-  // for (let i = 0; i < cols * rows; i++) {
-  //   const x = i % cols;
-  //   const y = Math.floor(i / cols);
-  //   const tile = grid[i];
-  //   const px = x * tileSize;
-  //   const py = y * tileSize;
-  //   drawTile(ctx, tile, px, py, grid, time);
-  // }
- 
-   // Draw only tiles in viewport
-  for (let y = 0; y < VIEWPORT_HEIGHT; y++) {
-    for (let x = 0; x < VIEWPORT_WIDTH; x++) {
-      const mapX = cam.x + x;
-      const mapY = cam.y + y;
-
+  // Draw only tiles in viewport, supporting fractional camera
+  for (let y = 0; y < VIEWPORT_HEIGHT + 1; y++) {
+    for (let x = 0; x < VIEWPORT_WIDTH + 1; x++) {
+      const mapX = Math.floor(cam.x + x);
+      const mapY = Math.floor(cam.y + y);
       // Skip if out of map bounds
       if (mapX < 0 || mapY < 0 || mapX >= cols || mapY >= rows) continue;
-
       const i = mapY * cols + mapX;
       const tile = grid[i];
-
-      // On-screen pixel coordinates
-      const px = x * tileSize;
-      const py = y * tileSize;
-
-      //drawTile(ctx, tile, px, py, grid, time);
+      // On-screen pixel coordinates, offset by fractional camera
+      const px = (x - (cam.x % 1)) * tileSize;
+      const py = (y - (cam.y % 1)) * tileSize;
       drawTile(ctx, tile, px, py, grid, time, tileSize, cols);
     }
   }

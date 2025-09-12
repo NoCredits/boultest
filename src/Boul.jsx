@@ -24,8 +24,8 @@ export default function Boul() {
   const playerRef = useRef({ x: 2, y: 2 });
   
   // Camera state
-  const cameraRef = useRef({ x: 0, y: 0 }); // top-left tile of the viewport
-    
+  const cameraRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0, speed: 0.1 }); // top-left tile of the viewport
+  
   // Path and movement refs
   const pathRef = useRef([]);
   const selectedDestRef = useRef(null);
@@ -67,11 +67,11 @@ export default function Boul() {
       key, 
       playerRef, 
       gridRef, 
-      
       setScore, 
       (newScore) => showLevelComplete(newScore),
       (dt) => updateRocks(dt, rockFallCooldownRef, gridRef, handlePlayerDie)
     );
+    updateCamera(); // Update camera target after player moves
   };
 
   const handlePlayerDie = () => {
@@ -253,8 +253,13 @@ function updateViewport(canvas) {
     camX = Math.max(0, Math.min(cols - VIEWPORT_WIDTH, camX));
     camY = Math.max(0, Math.min(rows - VIEWPORT_HEIGHT, camY));
 
-    cameraRef.current.x = camX;
-    cameraRef.current.y = camY;
+    cameraRef.current.targetX = camX;
+    cameraRef.current.targetY = camY;
+    // If camera is far from target (e.g. on reset), snap to target
+    if (Math.abs(cameraRef.current.x - camX) > 2 || Math.abs(cameraRef.current.y - camY) > 2) {
+      cameraRef.current.x = camX;
+      cameraRef.current.y = camY;
+    }
   }
 
 
@@ -268,10 +273,15 @@ function updateViewport(canvas) {
       const dt = now - lastTimeRef.current;
       lastTimeRef.current = now;
       
-      updateCamera(); // <-- Update camera before drawing
+      // Animate camera each frame
+      const cam = cameraRef.current;
+      const lerp = (a, b, t) => a + (b - a) * t;
+      cam.x = lerp(cam.x, cam.targetX, cam.speed);
+      cam.y = lerp(cam.y, cam.targetY, cam.speed);
+
       // Update rock physics
       updateRocks(dt, rockFallCooldownRef, gridRef, handlePlayerDie);
-      
+
       // Handle path following
       moveCooldownRef.current -= dt;
       if (moveCooldownRef.current <= 0) {
@@ -280,15 +290,15 @@ function updateViewport(canvas) {
           moveCooldownRef.current = PLAYER_MOVE_COOLDOWN;
         }
       }
-      
+
       // Render if needed
-        draw();
-      
+      draw();
+
       requestAnimationFrame(tick);
     }
-    
+
     requestAnimationFrame(tick);
-    
+
     return () => { 
       running = false; 
     };

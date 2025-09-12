@@ -19,7 +19,7 @@ export const TILE_COLORS = {
 
 export const GAME_CONFIG = {
   tileSize: 40,
-  cols: 15,
+  cols: 25,
   rows: 24,
   ROCK_FALL_INTERVAL: 100,
   REPEAT_INITIAL_DELAY: 150,
