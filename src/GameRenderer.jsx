@@ -2,12 +2,12 @@
 // Example cameraRef.current = { x: float, y: float, targetX: float, targetY: float, speed: float }
 import { TILE, TILE_COLORS, GAME_CONFIG } from './GameConstants';
 import { seededRandom } from './GameUtils';
-//const { tileSize, cols, rows } = GAME_CONFIG;
-//const { tileSize, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, cols, rows } = GAME_CONFIG;
+
+// Cache for static tiles to avoid re-rendering
+const tileCache = new Map();
+const CACHE_SIZE = 1000; // Limit cache size to prevent memory issues
 
 export function drawGame(canvasRef, gridRef, cameraRef, pathRef, time = performance.now()) {
-
-
   const { tileSize, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, cols, rows } = GAME_CONFIG;
   const canvas = canvasRef.current;
   if (!canvas) return;
@@ -15,48 +15,77 @@ export function drawGame(canvasRef, gridRef, cameraRef, pathRef, time = performa
   const grid = gridRef.current;
   const path = pathRef.current || [];
   const cam = cameraRef.current;
+  
   // Clear the canvas first
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Calculate viewport bounds with some padding for smooth scrolling
+  const startX = Math.floor(cam.x);
+  const startY = Math.floor(cam.y);
+  const endX = Math.min(startX + VIEWPORT_WIDTH + 2, cols);
+  const endY = Math.min(startY + VIEWPORT_HEIGHT + 2, rows);
+
   // Draw only tiles in viewport, supporting fractional camera
-  for (let y = 0; y < VIEWPORT_HEIGHT + 1; y++) {
-    for (let x = 0; x < VIEWPORT_WIDTH + 1; x++) {
-      const mapX = Math.floor(cam.x + x);
-      const mapY = Math.floor(cam.y + y);
-      // Skip if out of map bounds
-      if (mapX < 0 || mapY < 0 || mapX >= cols || mapY >= rows) continue;
+  for (let mapY = Math.max(0, startY); mapY < endY; mapY++) {
+    for (let mapX = Math.max(0, startX); mapX < endX; mapX++) {
       const i = mapY * cols + mapX;
       const tile = grid[i];
-      // On-screen pixel coordinates, offset by fractional camera
-      const px = (x - (cam.x % 1)) * tileSize;
-      const py = (y - (cam.y % 1)) * tileSize;
-      drawTile(ctx, tile, px, py, grid, time, tileSize, cols);
+      
+      // Calculate screen position
+      const screenX = (mapX - cam.x) * tileSize;
+      const screenY = (mapY - cam.y) * tileSize;
+      
+      // Skip tiles that are completely off-screen
+      if (screenX < -tileSize || screenY < -tileSize || 
+          screenX > canvas.width || screenY > canvas.height) continue;
+
+      drawTileOptimized(ctx, tile, screenX, screenY, grid, time, tileSize, cols, mapX, mapY);
     }
   }
-
-  // Draw path overlay
-  // ctx.fillStyle = 'rgba(255,255,0,0.3)';
-  // for (const p of path) {
-  //   ctx.fillRect(p.x * tileSize, p.y * tileSize, tileSize, tileSize);
-  // }
-
 
   // Draw path overlay only for tiles inside viewport
   ctx.fillStyle = 'rgba(255,255,0,0.3)';
   for (const p of path) {
-    if (
-      p.x >= cam.x &&
-      p.y >= cam.y &&
-      p.x < cam.x + VIEWPORT_WIDTH &&
-      p.y < cam.y + VIEWPORT_HEIGHT
-    ) {
+    if (p.x >= cam.x - 1 && p.y >= cam.y - 1 &&
+        p.x < cam.x + VIEWPORT_WIDTH + 1 && p.y < cam.y + VIEWPORT_HEIGHT + 1) {
       const screenX = (p.x - cam.x) * tileSize;
       const screenY = (p.y - cam.y) * tileSize;
       ctx.fillRect(screenX, screenY, tileSize, tileSize);
     }
   }
 }
-function drawTile(ctx, tile, px, py, grid, time, tileSize, cols) {
+
+function drawTileOptimized(ctx, tile, px, py, grid, time, tileSize, cols, mapX, mapY) {
+  // For static tiles (walls, dirt), use caching
+  if (tile === TILE.WALL || tile === TILE.DIRT || tile === TILE.EMPTY) {
+    const cacheKey = `${tile}_${mapX}_${mapY}_${tileSize}`;
+    
+    // Check if we have a cached version
+    if (tileCache.has(cacheKey)) {
+      const cachedCanvas = tileCache.get(cacheKey);
+      ctx.drawImage(cachedCanvas, px, py);
+      return;
+    }
+    
+    // Create cached version for static tiles
+    if (tileCache.size < CACHE_SIZE) {
+      const offscreenCanvas = new OffscreenCanvas(tileSize, tileSize);
+      const offscreenCtx = offscreenCanvas.getContext('2d');
+      
+      // Draw to offscreen canvas using absolute coordinates (0,0)
+      drawTileToCanvas(offscreenCtx, tile, 0, 0, grid, time, tileSize, cols, mapX, mapY);
+      
+      tileCache.set(cacheKey, offscreenCanvas);
+      ctx.drawImage(offscreenCanvas, px, py);
+      return;
+    }
+  }
+  
+  // For dynamic tiles (player, diamonds), draw directly
+  drawTileToCanvas(ctx, tile, px, py, grid, time, tileSize, cols, mapX, mapY);
+}
+
+function drawTileToCanvas(ctx, tile, px, py, grid, time, tileSize, cols, mapX, mapY) {
   switch (tile) {
     case TILE.ROCK:
       drawRock(ctx, px, py, tileSize, time);
@@ -65,30 +94,25 @@ function drawTile(ctx, tile, px, py, grid, time, tileSize, cols) {
       drawDiamond(ctx, px, py, tileSize, time);
       break;
     case TILE.DIRT:
-      drawDirt(ctx, px, py, tileSize, time);
+      drawDirt(ctx, px, py, tileSize, mapX, mapY);
       break;
     case TILE.PLAYER:
       drawPlayer(ctx, px, py, tileSize, time);
       break;
     case TILE.WALL:
-      drawWall(ctx, px, py, grid, tileSize, cols, time);
+      drawWall(ctx, px, py, grid, tileSize, cols, mapX, mapY);
       break;
     default:
-      drawDefault(ctx, tile, px, py, tileSize, time);
+      drawDefault(ctx, tile, px, py, tileSize, mapX, mapY);
       break;
   }
 }
 
-
 function drawRock(ctx, px, py, tileSize, time) {
-  // Black background
-  // ctx.fillStyle = '#000';
-  // ctx.fillRect(px, py, tileSize, tileSize);
-  drawDefault(ctx, TILE.EMPTY, px, py, tileSize, time);
-  // 3D rock effect
+  drawDefault(ctx, TILE.EMPTY, px, py, tileSize, 0, 0);
+  
   ctx.save();
   ctx.beginPath();
-  // Make rock larger: reduce margin to tile borders
   ctx.arc(px + tileSize / 2, py + tileSize / 2, tileSize / 2 - 1.5, 0, 2 * Math.PI);
   ctx.closePath();
 
@@ -101,7 +125,6 @@ function drawRock(ctx, px, py, tileSize, time) {
   ctx.fillStyle = grad;
   ctx.fill();
   
-  // Highlight (adjusted for larger rock)
   ctx.fillStyle = 'rgba(255,255,255,0.22)';
   ctx.beginPath();
   ctx.arc(px + tileSize / 2 - 6, py + tileSize / 2 - 6, 6, 0, 2 * Math.PI);
@@ -110,26 +133,23 @@ function drawRock(ctx, px, py, tileSize, time) {
 }
 
 function drawDiamond(ctx, px, py, tileSize, time) {
-  // Draw starry background first
-  drawDefault(ctx, TILE.EMPTY, px, py, tileSize, time);
+  drawDefault(ctx, TILE.EMPTY, px, py, tileSize, 0, 0);
 
-  // Draw diamond shape only (no square background)
   const grad = ctx.createLinearGradient(px, py, px + tileSize, py + tileSize);
   grad.addColorStop(0, '#0ff');
   grad.addColorStop(1, '#08f');
   ctx.fillStyle = grad;
 
-  // Make diamond larger to fill tile
-  const margin = tileSize * 0.06; // minimal space to avoid touching borders
+  const margin = tileSize * 0.06;
   ctx.beginPath();
-  ctx.moveTo(px + tileSize / 2, py + margin); // Top
-  ctx.lineTo(px + tileSize - margin, py + tileSize / 2); // Right
-  ctx.lineTo(px + tileSize / 2, py + tileSize - margin); // Bottom
-  ctx.lineTo(px + margin, py + tileSize / 2); // Left
+  ctx.moveTo(px + tileSize / 2, py + margin);
+  ctx.lineTo(px + tileSize - margin, py + tileSize / 2);
+  ctx.lineTo(px + tileSize / 2, py + tileSize - margin);
+  ctx.lineTo(px + margin, py + tileSize / 2);
   ctx.closePath();
   ctx.fill();
 
-  // Unique phase per diamond based on position
+  // Animated sparkles - this is why diamonds can't be cached
   const phase = (px * 13 + py * 7) % 1000;
   const sparkleAlpha = 0.6 + 0.4 * Math.sin((time + phase) / 400);
   ctx.save();
@@ -140,12 +160,10 @@ function drawDiamond(ctx, px, py, tileSize, time) {
     px + tileSize / 2,
     py + tileSize / 2,
     tileSize * (0.12 + 0.06 * Math.abs(Math.sin((time + phase) / 600))),
-    0,
-    2 * Math.PI
+    0, 2 * Math.PI
   );
   ctx.fill();
 
-  // Second sparkle: slower, random offset and twinkle
   const twinklePhase = (px * 17 + py * 23) % 1000;
   const twinkle = 0.5 + 0.5 * Math.sin((time + twinklePhase) / 700);
   ctx.globalAlpha = twinkle * 0.6;
@@ -154,29 +172,24 @@ function drawDiamond(ctx, px, py, tileSize, time) {
     px + tileSize / 2 + tileSize * 0.14 * Math.sin((time + phase) / 900),
     py + tileSize / 2 - tileSize * 0.11 * Math.cos((time + twinklePhase) / 800),
     tileSize * (0.06 + 0.06 * twinkle),
-    0,
-    2 * Math.PI
+    0, 2 * Math.PI
   );
   ctx.fill();
   ctx.restore();
-  ctx.globalAlpha = 1.0;
 }
 
-function drawDirt(ctx, px, py, tileSize, time) {
-  drawDefault(ctx, TILE.DIRT, px, py, tileSize, time);
+function drawDirt(ctx, px, py, tileSize, mapX, mapY) {
+  drawDefault(ctx, TILE.DIRT, px, py, tileSize, mapX, mapY);
 
-  // Gradient base
   const grad = ctx.createLinearGradient(px, py, px + tileSize, py + tileSize);
   grad.addColorStop(0, '#a97c50');
   grad.addColorStop(1, TILE_COLORS[TILE.DIRT]);
   ctx.fillStyle = grad;
   ctx.fillRect(px + 2, py + 2, tileSize - 4, tileSize - 4);
 
-
-  // Use tile position as seed
-  const baseSeed = px * 73856093 + py * 19349663;
+  // Use map coordinates for consistent seeding
+  const baseSeed = mapX * 73856093 + mapY * 19349663;
   for (let i = 0; i < 12; i++) {
-    // Unique seed per spot
     const spotSeed = baseSeed + i * 83492791;
     const rx = px + 3 + seededRandom(spotSeed) * (tileSize - 6);
     const ry = py + 3 + seededRandom(spotSeed + 1) * (tileSize - 6);
@@ -192,16 +205,15 @@ function drawDirt(ctx, px, py, tileSize, time) {
 }
 
 function drawPlayer(ctx, px, py, tileSize, time) {
-  drawDefault(ctx, TILE.PLAYER, px, py, tileSize, time);
+  drawDefault(ctx, TILE.PLAYER, px, py, tileSize, 0, 0);
 
   ctx.save();
   ctx.shadowColor = '#fff';
   ctx.shadowBlur = tileSize * 0.18;
 
-  // Animation phase
   const phase = Math.sin(time / 180);
 
-  // Head (scaled)
+  // Head
   const headRadius = tileSize * 0.18;
   const headOffsetY = tileSize * 0.13;
   ctx.fillStyle = '#ffea00';
@@ -212,15 +224,14 @@ function drawPlayer(ctx, px, py, tileSize, time) {
   ctx.fill();
   ctx.stroke();
 
-  // Body (scaled)
+  // Body
   const bodyWidth = tileSize * 0.26;
   const bodyHeight = tileSize * 0.32;
-  const bodyOffsetY = tileSize * 0.18;
   ctx.fillStyle = '#ff9800';
   ctx.fillRect(px + tileSize / 2 - bodyWidth / 2, py + tileSize / 2, bodyWidth, bodyHeight);
   ctx.strokeRect(px + tileSize / 2 - bodyWidth / 2, py + tileSize / 2, bodyWidth, bodyHeight);
 
-  // Arms (animated swing, scaled)
+  // Arms
   ctx.strokeStyle = '#ff9800';
   ctx.lineWidth = Math.max(4, tileSize * 0.08);
   const armStartY = py + tileSize / 2 + bodyHeight * 0.18;
@@ -232,12 +243,11 @@ function drawPlayer(ctx, px, py, tileSize, time) {
   ctx.lineTo(px + tileSize / 2 + bodyWidth / 2 + armLength * 0.5, armStartY + armLength * 0.5 - armLength * 0.3 * phase);
   ctx.stroke();
 
-  // Legs (animated walk, scaled, increased amplitude)
+  // Legs
   ctx.strokeStyle = '#1565c0';
-  ctx.lineWidth = Math.max(4, tileSize * 0.08);
   const legStartY = py + tileSize / 2 + bodyHeight;
   const legLength = tileSize * 0.26;
-  const legSwing = legLength * 0.38; // increased amplitude
+  const legSwing = legLength * 0.38;
   ctx.beginPath();
   ctx.moveTo(px + tileSize / 2 - bodyWidth * 0.18, legStartY);
   ctx.lineTo(px + tileSize / 2 - bodyWidth * 0.32, legStartY + legLength + legSwing * phase);
@@ -248,12 +258,11 @@ function drawPlayer(ctx, px, py, tileSize, time) {
   ctx.restore();
 }
 
-function drawWall(ctx, px, py, grid, tileSize,time, cols) {
-  // Draw base wall (no inset, fills tile)
+function drawWall(ctx, px, py, grid, tileSize, cols, mapX, mapY) {
+  // Base wall
   ctx.fillStyle = '#333';
   ctx.fillRect(px, py, tileSize, tileSize);
 
-  // Brick line thickness scales with tileSize
   ctx.strokeStyle = '#444';
   ctx.lineWidth = Math.max(2, tileSize * 0.06);
   const brickRows = 3;
@@ -261,10 +270,13 @@ function drawWall(ctx, px, py, grid, tileSize,time, cols) {
   const brickHeight = tileSize / brickRows;
   const brickWidth = tileSize / brickCols;
 
-  // Draw horizontal brick lines, randomly skip some for rugged look
+  // Use map coordinates for consistent seeding
+  const baseSeed = mapX * 73856093 + mapY * 19349663;
+
+  // Horizontal lines
   for (let y = 0; y < brickRows; y++) {
     const lineY = py + y * brickHeight;
-    const lineSeed = px * 73856093 + py * 19349663 + y * 12345;
+    const lineSeed = baseSeed + y * 12345;
     if (seededRandom(lineSeed) > 0.18) {
       ctx.beginPath();
       ctx.moveTo(px, lineY);
@@ -273,11 +285,11 @@ function drawWall(ctx, px, py, grid, tileSize,time, cols) {
     }
   }
 
-  // Draw vertical brick lines, randomly skip some for rugged look
+  // Vertical lines
   for (let row = 0; row < brickRows; row++) {
     let offset = (row % 2 === 0) ? brickWidth / 2 : 0;
     for (let x = offset; x < tileSize; x += brickWidth) {
-      const vlineSeed = px * 73856093 + py * 19349663 + row * 54321 + x * 9876;
+      const vlineSeed = baseSeed + row * 54321 + x * 9876;
       if (seededRandom(vlineSeed) > 0.22) {
         ctx.beginPath();
         ctx.moveTo(px + x, py + row * brickHeight);
@@ -287,12 +299,10 @@ function drawWall(ctx, px, py, grid, tileSize,time, cols) {
     }
   }
 
-  // Top highlight only if no wall directly above
-  const col = Math.floor(px / tileSize);
-  const row = Math.floor(py / tileSize);
+  // Top highlight (check if wall above using map coordinates)
   let drawHighlight = true;
-  if (row > 0 && grid) {
-    const aboveIndex = (row - 1) * cols + col;
+  if (mapY > 0 && grid) {
+    const aboveIndex = (mapY - 1) * cols + mapX;
     if (aboveIndex >= 0 && aboveIndex < grid.length && grid[aboveIndex] === TILE.WALL) {
       drawHighlight = false;
     }
@@ -302,15 +312,13 @@ function drawWall(ctx, px, py, grid, tileSize,time, cols) {
     ctx.fillRect(px, py, tileSize, Math.max(6, tileSize * 0.13));
   }
 
-  // Moss, leaves, berries scale with tileSize
-  const mossSeed = px * 73856093 + py * 19349663;
+  // Moss and decorations
   for (let i = 0; i < 3; i++) {
-    const spotSeed = mossSeed + i * 83492791;
+    const spotSeed = baseSeed + i * 83492791;
     const rx = px + tileSize * 0.08 + seededRandom(spotSeed) * (tileSize * 0.84);
     const ry = py + tileSize * 0.08 + seededRandom(spotSeed + 1) * (tileSize * 0.84);
     ctx.save();
     ctx.beginPath();
-    // Draw an irregular blob using Bezier curves
     ctx.moveTo(rx, ry);
     for (let j = 0; j < 5; j++) {
       const angle = (Math.PI * 2 * j) / 5;
@@ -325,25 +333,24 @@ function drawWall(ctx, px, py, grid, tileSize,time, cols) {
     ctx.fill();
     ctx.restore();
 
-    // Optionally, add a few leaf shapes
+    // Leaves
     if (seededRandom(spotSeed + 5) > 0.6) {
       ctx.save();
       ctx.beginPath();
       ctx.ellipse(
         rx + seededRandom(spotSeed + 6) * tileSize * 0.13 - tileSize * 0.065,
         ry + seededRandom(spotSeed + 7) * tileSize * 0.13 - tileSize * 0.065,
-        tileSize * 0.04,
-        tileSize * 0.02,
+        tileSize * 0.04, tileSize * 0.02,
         seededRandom(spotSeed + 8) * Math.PI,
-        0,
-        2 * Math.PI
+        0, 2 * Math.PI
       );
       ctx.fillStyle = '#4caf50';
       ctx.globalAlpha = 0.6;
       ctx.fill();
       ctx.restore();
     }
-    // Rare berries
+
+    // Berries
     if (seededRandom(spotSeed + 20) > 0.95) {
       ctx.save();
       ctx.beginPath();
@@ -351,8 +358,7 @@ function drawWall(ctx, px, py, grid, tileSize,time, cols) {
         rx + seededRandom(spotSeed + 21) * tileSize * 0.13 - tileSize * 0.065,
         ry + seededRandom(spotSeed + 22) * tileSize * 0.13 - tileSize * 0.065,
         tileSize * 0.03 + seededRandom(spotSeed + 23) * tileSize * 0.02,
-        0,
-        2 * Math.PI
+        0, 2 * Math.PI
       );
       ctx.fillStyle = '#c62828';
       ctx.globalAlpha = 0.85;
@@ -362,51 +368,46 @@ function drawWall(ctx, px, py, grid, tileSize,time, cols) {
   }
 }
 
-function drawDefault(ctx, tile, px, py, tileSize, time) {
-  // if (tile === TILE.ROCK) {
-  //   ctx.fillStyle = '#000';
-  //   ctx.fillRect(px, py, tileSize, tileSize);
-  // } else {
-    if (tile === TILE.EMPTY) {
-      // Night sky background
-      ctx.fillStyle = '#07071a';
-      ctx.fillRect(px, py, tileSize, tileSize);
+function drawDefault(ctx, tile, px, py, tileSize, mapX, mapY) {
+  if (tile === TILE.EMPTY) {
+    ctx.fillStyle = '#07071a';
+    ctx.fillRect(px, py, tileSize, tileSize);
 
-      const baseSeed = px * 73856093 + py * 19349663;
-      // Fewer stars, some random blinking
-      //const time = performance.now();
-      for (let i = 0; i < 3; i++) {
-        const starSeed = baseSeed + i * 83492791;
-        const rx = px + 4 + seededRandom(starSeed) * (tileSize - 8);
-        const ry = py + 4 + seededRandom(starSeed + 1) * (tileSize - 8);
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(rx, ry, 0.7 + seededRandom(starSeed + 2) * 1.1, 0, 2 * Math.PI);
-        ctx.fillStyle = '#fff';
-        // Blinking: each star has its own phase, blinks rarely
-        const blinkPhase = Math.abs(Math.sin((time / 1200) + starSeed)) + seededRandom(starSeed + 4);
-        let alpha = 0.7 + seededRandom(starSeed + 3) * 0.3;
-        if (blinkPhase > 1.85) {
-          alpha *= 0.2 + seededRandom(starSeed + 5) * 0.3; // occasional dim blink
-        }
-        ctx.globalAlpha = alpha;
-        ctx.fill();
-        ctx.restore();
-      }
-    } else {
-      ctx.fillStyle = TILE_COLORS[tile] || '#f0f';
+    // Use map coordinates for consistent star positions
+    const baseSeed = mapX * 73856093 + mapY * 19349663;
+    for (let i = 0; i < 3; i++) {
+      const starSeed = baseSeed + i * 83492791;
+      const rx = px + 4 + seededRandom(starSeed) * (tileSize - 8);
+      const ry = py + 4 + seededRandom(starSeed + 1) * (tileSize - 8);
+      ctx.save();
       ctx.beginPath();
-      ctx.moveTo(px + 4, py);
-      ctx.lineTo(px + tileSize - 4, py);
-      ctx.quadraticCurveTo(px + tileSize, py, px + tileSize, py + 4);
-      ctx.lineTo(px + tileSize, py + tileSize - 4);
-      ctx.quadraticCurveTo(px + tileSize, py + tileSize, px + tileSize - 4, py + tileSize);
-      ctx.lineTo(px + 4, py + tileSize);
-      ctx.quadraticCurveTo(px, py + tileSize, px, py + tileSize - 4);
-      ctx.lineTo(px, py + 4);
-      ctx.quadraticCurveTo(px, py, px + 4, py);
-      ctx.closePath();
+      ctx.arc(rx, ry, 0.7 + seededRandom(starSeed + 2) * 1.1, 0, 2 * Math.PI);
+      ctx.fillStyle = '#fff';
+      
+      // Static stars for cached tiles
+      const alpha = 0.7 + seededRandom(starSeed + 3) * 0.3;
+      ctx.globalAlpha = alpha;
       ctx.fill();
+      ctx.restore();
     }
-  // }
+  } else {
+    ctx.fillStyle = TILE_COLORS[tile] || '#f0f';
+    ctx.beginPath();
+    ctx.moveTo(px + 4, py);
+    ctx.lineTo(px + tileSize - 4, py);
+    ctx.quadraticCurveTo(px + tileSize, py, px + tileSize, py + 4);
+    ctx.lineTo(px + tileSize, py + tileSize - 4);
+    ctx.quadraticCurveTo(px + tileSize, py + tileSize, px + tileSize - 4, py + tileSize);
+    ctx.lineTo(px + 4, py + tileSize);
+    ctx.quadraticCurveTo(px, py + tileSize, px, py + tileSize - 4);
+    ctx.lineTo(px, py + 4);
+    ctx.quadraticCurveTo(px, py, px + 4, py);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+// Export function to clear cache if needed (e.g., when tile size changes)
+export function clearTileCache() {
+  tileCache.clear();
 }

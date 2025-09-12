@@ -31,10 +31,13 @@ const screenY = e.clientY - rect.top;
 const tileX = Math.floor(screenX / GAME_CONFIG.tileSize);
 const tileY = Math.floor(screenY / GAME_CONFIG.tileSize);
 
-// Convert to world coords by adding camera offset
-const worldX = cameraRef.current.x + tileX;
-const worldY = cameraRef.current.y + tileY;
-
+// Convert to world coords by adding camera offset, then floor
+//const worldX = Math.floor(cameraRef.current.x + tileX);
+//const worldY = Math.floor(cameraRef.current.y + tileY);
+//const worldX = Math.floor(cameraRef.current.x) + tileX;
+//const worldY = Math.floor(cameraRef.current.y) + tileY;
+const worldX = Math.floor(cameraRef.current.x + screenX / GAME_CONFIG.tileSize);
+const worldY = Math.floor(cameraRef.current.y + screenY / GAME_CONFIG.tileSize);
       // const gx = Math.floor((e.clientX - rect.left) / tileSize);
       // const gy = Math.floor((e.clientY - rect.top) / tileSize); 
 

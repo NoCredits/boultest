@@ -47,6 +47,7 @@ export default function Boul() {
     setScore(0);
     setLives(3);
     clearPath();
+    updateCamera(); // Center camera on player at start
   };
 
   const clearPath = () => {
@@ -125,6 +126,7 @@ export default function Boul() {
         selectedDestRef.current = null;
       }
     );
+     updateCamera(); // Update camera target after player moves
   };
 
   // UI event handlers
