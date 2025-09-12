@@ -1,11 +1,10 @@
 import { TILE, TILE_COLORS, GAME_CONFIG } from './GameConstants';
-
+import { seededRandom } from './GameUtils';
 const { tileSize, cols, rows } = GAME_CONFIG;
 
-export function drawGame(canvasRef, gridRef, pathRef) {
 
-  
-   
+export function drawGame(canvasRef, gridRef, pathRef, time = performance.now()) {
+
   const canvas = canvasRef.current;
   if (!canvas) return;
   
@@ -20,7 +19,7 @@ export function drawGame(canvasRef, gridRef, pathRef) {
     const tile = grid[i];
     const px = x * tileSize;
     const py = y * tileSize;
-    drawTile(ctx, tile, px, py, grid);
+    drawTile(ctx, tile, px, py, grid, time);
   }
 
   // Draw path overlay
@@ -30,34 +29,34 @@ export function drawGame(canvasRef, gridRef, pathRef) {
   }
 }
 
-function drawTile(ctx, tile, px, py, grid) {
+function drawTile(ctx, tile, px, py, grid, time) {
   switch (tile) {
     case TILE.ROCK:
-      drawRock(ctx, px, py);
+      drawRock(ctx, px, py, time);
       break;
     case TILE.DIAMOND:
-      drawDiamond(ctx, px, py);
+      drawDiamond(ctx, px, py, time);
       break;
     case TILE.DIRT:
-      drawDirt(ctx, px, py);
+      drawDirt(ctx, px, py, time );
       break;
     case TILE.PLAYER:
-      drawPlayer(ctx, px, py);
+      drawPlayer(ctx, px, py, time);
       break;
     case TILE.WALL:
-      drawWall(ctx, px, py, grid);
+      drawWall(ctx, px, py, grid, time);
       break;
     default:
-      drawDefault(ctx, tile, px, py);
+      drawDefault(ctx, tile, px, py, time);
       break;
   }
 }
 
-function drawRock(ctx, px, py) {
+function drawRock(ctx, px, py, time) {
   // Black background
   // ctx.fillStyle = '#000';
   // ctx.fillRect(px, py, tileSize, tileSize);
-  drawDefault(ctx, TILE.EMPTY, px, py);
+  drawDefault(ctx, TILE.EMPTY, px, py, time);
   // 3D rock effect
   ctx.save();
   ctx.beginPath();
@@ -82,9 +81,9 @@ function drawRock(ctx, px, py) {
   ctx.restore();
 }
 
-function drawDiamond(ctx, px, py) {
+function drawDiamond(ctx, px, py, time) {
   // Draw starry background first
-  drawDefault(ctx, TILE.EMPTY, px, py);
+  drawDefault(ctx, TILE.EMPTY, px, py, time);
 
   // Draw diamond shape only (no square background)
   const grad = ctx.createLinearGradient(px, py, px + tileSize, py + tileSize);
@@ -103,7 +102,7 @@ function drawDiamond(ctx, px, py) {
   ctx.fill();
 
   // Slower, more random sparkle animation
-  const time = performance.now();
+  //const time = performance.now();
   // Unique phase per diamond based on position
   const phase = (px * 13 + py * 7) % 1000;
   const sparkleAlpha = 0.6 + 0.4 * Math.sin((time + phase) / 400);
@@ -137,8 +136,8 @@ function drawDiamond(ctx, px, py) {
   ctx.globalAlpha = 1.0;
 }
 
-function drawDirt(ctx, px, py) {
-  drawDefault(ctx, TILE.DIRT, px, py);
+function drawDirt(ctx, px, py, time) {
+  drawDefault(ctx, TILE.DIRT, px, py, time);
 
   // Gradient base
   const grad = ctx.createLinearGradient(px, py, px + tileSize, py + tileSize);
@@ -147,11 +146,6 @@ function drawDirt(ctx, px, py) {
   ctx.fillStyle = grad;
   ctx.fillRect(px + 2, py + 2, tileSize - 4, tileSize - 4);
 
-  // Persistent pebbles and texture dots using seeded RNG
-  function seededRandom(seed) {
-    let x = Math.sin(seed) * 10000;
-    return x - Math.floor(x);
-  }
 
   // Use tile position as seed
   const baseSeed = px * 73856093 + py * 19349663;
@@ -171,15 +165,15 @@ function drawDirt(ctx, px, py) {
   }
 }
 
-function drawPlayer(ctx, px, py) {
-  drawDefault(ctx, TILE.PLAYER, px, py);
+function drawPlayer(ctx, px, py, time) {
+  drawDefault(ctx, TILE.PLAYER, px, py  , time);
 
   ctx.save();
   ctx.shadowColor = '#fff';
   ctx.shadowBlur = 12;
 
   // Animation phase
-  const time = performance.now();
+  //const time = performance.now();
   const phase = Math.sin(time / 180);
 
   // Head
@@ -219,7 +213,7 @@ function drawPlayer(ctx, px, py) {
   ctx.restore();
 }
 
-function drawWall(ctx, px, py, grid) {
+function drawWall(ctx, px, py, grid, time) {
   // Draw base wall (no inset, fills tile)
   ctx.fillStyle = '#333';
   ctx.fillRect(px, py, tileSize, tileSize);
@@ -258,12 +252,6 @@ function drawWall(ctx, px, py, grid) {
   if (row > 0 && grid && grid[aboveIndex] !== TILE.WALL) {
     ctx.fillStyle = '#666';
     ctx.fillRect(px, py, tileSize, 6);
-  }
-
-  // Add random moss/leaves as irregular blobs
-  function seededRandom(seed) {
-    let x = Math.sin(seed) * 10000;
-    return x - Math.floor(x);
   }
   const mossSeed = px * 73856093 + py * 19349663;
   for (let i = 0; i < 3; i++) {
@@ -310,7 +298,7 @@ function drawWall(ctx, px, py, grid) {
   }
 }
 
-function drawDefault(ctx, tile, px, py) {
+function drawDefault(ctx, tile, px, py, time) {
   // if (tile === TILE.ROCK) {
   //   ctx.fillStyle = '#000';
   //   ctx.fillRect(px, py, tileSize, tileSize);
@@ -320,14 +308,9 @@ function drawDefault(ctx, tile, px, py) {
       ctx.fillStyle = '#07071a';
       ctx.fillRect(px, py, tileSize, tileSize);
 
-      // Persistent stars using seeded RNG
-      function seededRandom(seed) {
-        let x = Math.sin(seed) * 10000;
-        return x - Math.floor(x);
-      }
       const baseSeed = px * 73856093 + py * 19349663;
       // Fewer stars, some random blinking
-      const time = performance.now();
+      //const time = performance.now();
       for (let i = 0; i < 3; i++) {
         const starSeed = baseSeed + i * 83492791;
         const rx = px + 4 + seededRandom(starSeed) * (tileSize - 8);

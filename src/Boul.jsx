@@ -116,7 +116,7 @@ export default function Boul() {
       gridRef, 
       
       setScore,
-      () => showLevelComplete(),
+      () => showLevelComplete(score),
       () => {
         isPathActiveRef.current = false;
         selectedDestRef.current = null;
