@@ -22,6 +22,9 @@ export default function Boul() {
   const canvasRef = useRef(null);
   const gridRef = useRef([]);
   const playerRef = useRef({ x: 2, y: 2 });
+  
+  // Camera state
+  const cameraRef = useRef({ x: 0, y: 0 }); // top-left tile of the viewport
     
   // Path and movement refs
   const pathRef = useRef([]);
@@ -54,7 +57,7 @@ export default function Boul() {
 
   const draw = () => {
 
-    drawGame(canvasRef, gridRef, pathRef);
+    drawGame(canvasRef, gridRef, cameraRef, pathRef);
   };
 
   // Game event handlers
@@ -151,9 +154,36 @@ export default function Boul() {
       
       rockFallCooldownRef,
       handlePlayerDie,
-      draw
+      draw,
+      cameraRef
     );
   };
+
+
+function updateViewport(canvas) {
+  const { innerWidth, innerHeight } = window;
+  const { MAX_VIEWPORT_TILES_X } = GAME_CONFIG;
+
+  // Step 1: Calculate new tile size
+  const newTileSize = Math.floor(innerWidth / MAX_VIEWPORT_TILES_X);
+
+  // Step 2: Calculate how many vertical tiles fit
+  const newViewportTilesY = Math.floor(innerHeight / newTileSize);
+
+  // Step 3: Update game config
+  GAME_CONFIG.tileSize = newTileSize;
+  GAME_CONFIG.VIEWPORT_WIDTH = MAX_VIEWPORT_TILES_X;
+  GAME_CONFIG.VIEWPORT_HEIGHT = newViewportTilesY;
+
+  // Step 4: Update canvas pixel size
+  canvas.width = MAX_VIEWPORT_TILES_X * newTileSize;
+  canvas.height = newViewportTilesY * newTileSize;
+
+  console.log(
+    `Viewport updated → tileSize=${newTileSize}, WIDTH=${MAX_VIEWPORT_TILES_X}, HEIGHT=${newViewportTilesY}`
+  );
+}
+
 
 
   // Initialize canvas and game
@@ -161,9 +191,27 @@ export default function Boul() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    canvas.width = cols * tileSize;
-    canvas.height = rows * tileSize;
-    
+    //     //canvas.width = cols * tileSize;
+    //     //canvas.height = rows * tileSize;
+    // //    canvas.width = GAME_CONFIG.VIEWPORT_WIDTH * GAME_CONFIG.tileSize;
+    // //    canvas.height = GAME_CONFIG.VIEWPORT_HEIGHT * GAME_CONFIG.tileSize;
+
+    // // --- Step 1: Calculate tile size based on width ---
+    //     const tileSize = Math.floor(innerWidth / GAME_CONFIG.MAX_VIEWPORT_TILES_X);
+
+    //     // --- Step 2: Calculate how many vertical tiles can fit ---
+    //     const viewportTilesY = Math.floor(innerHeight / tileSize);
+
+    //     // --- Step 3: Store back into config ---
+    //     GAME_CONFIG.tileSize = tileSize;
+    //     GAME_CONFIG.VIEWPORT_WIDTH = GAME_CONFIG.MAX_VIEWPORT_TILES_X;
+    //     GAME_CONFIG.VIEWPORT_HEIGHT = viewportTilesY;
+
+    //     // --- Step 4: Set canvas pixel size ---
+    //     canvas.width = GAME_CONFIG.MAX_VIEWPORT_TILES_X * tileSize;
+    //     canvas.height = viewportTilesY * tileSize;
+
+    updateViewport(canvas);
     initializeGame();
     
     // Set up input handler
@@ -172,16 +220,43 @@ export default function Boul() {
     
     // Add event listeners
     window.addEventListener('keydown', inputHandler.handleKeyDown);
-    window.addEventListener('keyup', inputHandler.handleKeyUp);
+    window. addEventListener('keyup', inputHandler.handleKeyUp);
     canvas.addEventListener('click', handleClick);
+
+    // Event listener for resizing
+  function handleResize() {
+    updateViewport(canvas);
+    draw(); // Redraw immediately after resizing
+  }
+  window.addEventListener('resize', handleResize);
+
 
     return () => {
       window.removeEventListener('keydown', inputHandler.handleKeyDown);
       window.removeEventListener('keyup', inputHandler.handleKeyUp);
       canvas.removeEventListener('click', handleClick);
+       window.removeEventListener('resize', handleResize);
       inputHandler.cleanup();
     };
   }, []);
+
+
+  function updateCamera() {
+    const { VIEWPORT_WIDTH, VIEWPORT_HEIGHT, cols, rows } = GAME_CONFIG;
+    const player = playerRef.current;
+
+    // Center camera on player
+    let camX = player.x - Math.floor(VIEWPORT_WIDTH / 2);
+    let camY = player.y - Math.floor(VIEWPORT_HEIGHT / 2);
+
+    // Clamp to map boundaries
+    camX = Math.max(0, Math.min(cols - VIEWPORT_WIDTH, camX));
+    camY = Math.max(0, Math.min(rows - VIEWPORT_HEIGHT, camY));
+
+    cameraRef.current.x = camX;
+    cameraRef.current.y = camY;
+  }
+
 
   // Game loop
   useEffect(() => {
@@ -193,6 +268,7 @@ export default function Boul() {
       const dt = now - lastTimeRef.current;
       lastTimeRef.current = now;
       
+      updateCamera(); // <-- Update camera before drawing
       // Update rock physics
       updateRocks(dt, rockFallCooldownRef, gridRef, handlePlayerDie);
       
@@ -218,6 +294,8 @@ export default function Boul() {
     };
   }, []);
 
+
+  
   // Redraw when score/lives change
   useEffect(() => {
     draw();

@@ -15,49 +15,64 @@ export function handleCanvasClick(
   isPathActiveRef, 
     rockFallCooldownRef,
   onPlayerDie,
-  onDraw
+  onDraw,
+  cameraRef
 ) {
   e.preventDefault();
   const canvas = canvasRef.current;
   const rect = canvas.getBoundingClientRect();
-  const gx = Math.floor((e.clientX - rect.left) / tileSize);
-  const gy = Math.floor((e.clientY - rect.top) / tileSize);
+
   
-  if (!inBounds(gx, gy)) return;
+// Screen-space position
+const screenX = e.clientX - rect.left;
+const screenY = e.clientY - rect.top;
+
+// Convert to tile coords in viewport
+const tileX = Math.floor(screenX / GAME_CONFIG.tileSize);
+const tileY = Math.floor(screenY / GAME_CONFIG.tileSize);
+
+// Convert to world coords by adding camera offset
+const worldX = cameraRef.current.x + tileX;
+const worldY = cameraRef.current.y + tileY;
+
+      // const gx = Math.floor((e.clientX - rect.left) / tileSize);
+      // const gy = Math.floor((e.clientY - rect.top) / tileSize); 
+
+  if (!inBounds(worldX, worldY)) return;
   
-  const clickedTile = gridRef.current[index(gx, gy)];
+  const clickedTile = gridRef.current[index(worldX, worldY)];
   const player = playerRef.current;
 
   // Handle rock pushing
   if (clickedTile === TILE.ROCK) {
-    const dx = gx - player.x;
-    const dy = gy - player.y;
+    const dx = worldX - player.x;
+    const dy = worldY - player.y;
     
     // Check if rock is adjacent to player
     if ((Math.abs(dx) === 1 && dy === 0) || (Math.abs(dy) === 1 && dx === 0)) {
-      const pushX = gx + dx;
-      const pushY = gy + dy;
+      const pushX = worldX + dx;
+      const pushY = worldY + dy;
       
       // Check if we can push the rock
       if (inBounds(pushX, pushY) && gridRef.current[index(pushX, pushY)] === TILE.EMPTY) {
         gridRef.current[index(pushX, pushY)] = TILE.ROCK;
-        gridRef.current[index(gx, gy)] = TILE.EMPTY;
+        gridRef.current[index(worldX, worldY)] = TILE.EMPTY;
         updateRocks(0, rockFallCooldownRef, gridRef, onPlayerDie);
         onDraw();
       }
     }
   } else {
     // Handle pathfinding
-    if (selectedDestRef.current && selectedDestRef.current.x === gx && selectedDestRef.current.y === gy) {
+    if (selectedDestRef.current && selectedDestRef.current.x === worldX && selectedDestRef.current.y === worldY) {
       // Second click: Activate path following
       isPathActiveRef.current = true;
       selectedDestRef.current = null;
     } else {
       // First click: Preview the path
-      const destination = { x: gx, y: gy };
+      const destination = { x: worldX, y: worldY };
       pathRef.current = bfsPath(playerRef.current, destination, gridRef);
       isPathActiveRef.current = false;
-      selectedDestRef.current = { x: gx, y: gy };
+      selectedDestRef.current = { x: worldX, y: worldY };
       onDraw();
     }
   }

@@ -1,9 +1,12 @@
 import { TILE, TILE_COLORS, GAME_CONFIG } from './GameConstants';
 import { seededRandom } from './GameUtils';
-const { tileSize, cols, rows } = GAME_CONFIG;
+//const { tileSize, cols, rows } = GAME_CONFIG;
+//const { tileSize, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, cols, rows } = GAME_CONFIG;
 
+export function drawGame(canvasRef, gridRef, cameraRef, pathRef, time = performance.now()) {
 
-export function drawGame(canvasRef, gridRef, pathRef, time = performance.now()) {
+  const { tileSize, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, cols, rows } = GAME_CONFIG;
+
 
   const canvas = canvasRef.current;
   if (!canvas) return;
@@ -12,51 +15,95 @@ export function drawGame(canvasRef, gridRef, pathRef, time = performance.now()) 
   const grid = gridRef.current;
   const path = pathRef.current || [];
 
-  // Always render all tiles
-  for (let i = 0; i < cols * rows; i++) {
-    const x = i % cols;
-    const y = Math.floor(i / cols);
-    const tile = grid[i];
-    const px = x * tileSize;
-    const py = y * tileSize;
-    drawTile(ctx, tile, px, py, grid, time);
+  
+  
+  const cam = cameraRef.current;
+  // Clear the canvas first
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+
+  // // Always render all tiles
+  // for (let i = 0; i < cols * rows; i++) {
+  //   const x = i % cols;
+  //   const y = Math.floor(i / cols);
+  //   const tile = grid[i];
+  //   const px = x * tileSize;
+  //   const py = y * tileSize;
+  //   drawTile(ctx, tile, px, py, grid, time);
+  // }
+ 
+   // Draw only tiles in viewport
+  for (let y = 0; y < VIEWPORT_HEIGHT; y++) {
+    for (let x = 0; x < VIEWPORT_WIDTH; x++) {
+      const mapX = cam.x + x;
+      const mapY = cam.y + y;
+
+      // Skip if out of map bounds
+      if (mapX < 0 || mapY < 0 || mapX >= cols || mapY >= rows) continue;
+
+      const i = mapY * cols + mapX;
+      const tile = grid[i];
+
+      // On-screen pixel coordinates
+      const px = x * tileSize;
+      const py = y * tileSize;
+
+      //drawTile(ctx, tile, px, py, grid, time);
+      drawTile(ctx, tile, px, py, grid, time, tileSize, cols);
+    }
   }
 
   // Draw path overlay
+  // ctx.fillStyle = 'rgba(255,255,0,0.3)';
+  // for (const p of path) {
+  //   ctx.fillRect(p.x * tileSize, p.y * tileSize, tileSize, tileSize);
+  // }
+
+
+  // Draw path overlay only for tiles inside viewport
   ctx.fillStyle = 'rgba(255,255,0,0.3)';
   for (const p of path) {
-    ctx.fillRect(p.x * tileSize, p.y * tileSize, tileSize, tileSize);
+    if (
+      p.x >= cam.x &&
+      p.y >= cam.y &&
+      p.x < cam.x + VIEWPORT_WIDTH &&
+      p.y < cam.y + VIEWPORT_HEIGHT
+    ) {
+      const screenX = (p.x - cam.x) * tileSize;
+      const screenY = (p.y - cam.y) * tileSize;
+      ctx.fillRect(screenX, screenY, tileSize, tileSize);
+    }
   }
 }
-
-function drawTile(ctx, tile, px, py, grid, time) {
+function drawTile(ctx, tile, px, py, grid, time, tileSize, cols) {
   switch (tile) {
     case TILE.ROCK:
-      drawRock(ctx, px, py, time);
+      drawRock(ctx, px, py, tileSize, time);
       break;
     case TILE.DIAMOND:
-      drawDiamond(ctx, px, py, time);
+      drawDiamond(ctx, px, py, tileSize, time);
       break;
     case TILE.DIRT:
-      drawDirt(ctx, px, py, time );
+      drawDirt(ctx, px, py, tileSize, time);
       break;
     case TILE.PLAYER:
-      drawPlayer(ctx, px, py, time);
+      drawPlayer(ctx, px, py, tileSize, time);
       break;
     case TILE.WALL:
-      drawWall(ctx, px, py, grid, time);
+      drawWall(ctx, px, py, grid, tileSize, cols, time);
       break;
     default:
-      drawDefault(ctx, tile, px, py, time);
+      drawDefault(ctx, tile, px, py, tileSize, time);
       break;
   }
 }
 
-function drawRock(ctx, px, py, time) {
+
+function drawRock(ctx, px, py, tileSize, time) {
   // Black background
   // ctx.fillStyle = '#000';
   // ctx.fillRect(px, py, tileSize, tileSize);
-  drawDefault(ctx, TILE.EMPTY, px, py, time);
+  drawDefault(ctx, TILE.EMPTY, px, py, tileSize, time);
   // 3D rock effect
   ctx.save();
   ctx.beginPath();
@@ -81,9 +128,9 @@ function drawRock(ctx, px, py, time) {
   ctx.restore();
 }
 
-function drawDiamond(ctx, px, py, time) {
+function drawDiamond(ctx, px, py, tileSize, time) {
   // Draw starry background first
-  drawDefault(ctx, TILE.EMPTY, px, py, time);
+  drawDefault(ctx, TILE.EMPTY, px, py, tileSize, time);
 
   // Draw diamond shape only (no square background)
   const grad = ctx.createLinearGradient(px, py, px + tileSize, py + tileSize);
@@ -136,8 +183,8 @@ function drawDiamond(ctx, px, py, time) {
   ctx.globalAlpha = 1.0;
 }
 
-function drawDirt(ctx, px, py, time) {
-  drawDefault(ctx, TILE.DIRT, px, py, time);
+function drawDirt(ctx, px, py, tileSize, time) {
+  drawDefault(ctx, TILE.DIRT, px, py, tileSize, time);
 
   // Gradient base
   const grad = ctx.createLinearGradient(px, py, px + tileSize, py + tileSize);
@@ -165,8 +212,8 @@ function drawDirt(ctx, px, py, time) {
   }
 }
 
-function drawPlayer(ctx, px, py, time) {
-  drawDefault(ctx, TILE.PLAYER, px, py  , time);
+function drawPlayer(ctx, px, py, tileSize, time) {
+  drawDefault(ctx, TILE.PLAYER, px, py, tileSize, time);
 
   ctx.save();
   ctx.shadowColor = '#fff';
@@ -213,7 +260,7 @@ function drawPlayer(ctx, px, py, time) {
   ctx.restore();
 }
 
-function drawWall(ctx, px, py, grid, time) {
+function drawWall(ctx, px, py, grid, tileSize,time, cols) {
   // Draw base wall (no inset, fills tile)
   ctx.fillStyle = '#333';
   ctx.fillRect(px, py, tileSize, tileSize);
@@ -298,7 +345,7 @@ function drawWall(ctx, px, py, grid, time) {
   }
 }
 
-function drawDefault(ctx, tile, px, py, time) {
+function drawDefault(ctx, tile, px, py, tileSize, time) {
   // if (tile === TILE.ROCK) {
   //   ctx.fillStyle = '#000';
   //   ctx.fillRect(px, py, tileSize, tileSize);

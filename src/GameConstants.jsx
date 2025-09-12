@@ -24,7 +24,11 @@ export const GAME_CONFIG = {
   ROCK_FALL_INTERVAL: 100,
   REPEAT_INITIAL_DELAY: 150,
   REPEAT_INTERVAL: 120,
-  PLAYER_MOVE_COOLDOWN: 180
+  PLAYER_MOVE_COOLDOWN: 180,
+   VIEWPORT_WIDTH: 15,  // number of tiles visible horizontally
+  VIEWPORT_HEIGHT: 10, // number of tiles visible vertically
+  MAX_VIEWPORT_TILES_X: 15, // maximum tiles visible horizontally
+  MAX_VIEWPORT_TILES_Y: 15, // can be adjusted dynamically, based on window aspect ratio
 };
 
 export const MOVESOUND = new Audio('/sounds/move.mp3');
