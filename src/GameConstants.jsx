@@ -22,10 +22,16 @@ export const GAME_CONFIG = {
   cols: 15,
   rows: 24,
   ROCK_FALL_INTERVAL: 100,
-  REPEAT_INITIAL_DELAY: 0,
-  REPEAT_INTERVAL: 80,
-  PLAYER_MOVE_COOLDOWN: 120
+  REPEAT_INITIAL_DELAY: 150,
+  REPEAT_INTERVAL: 120,
+  PLAYER_MOVE_COOLDOWN: 180
 };
+
+export const MOVESOUND = new Audio('/sounds/move.mp3');
+export const DIAMONDSOUND = new Audio('/sounds/diamond.mp3');
+export const ROCKFALLSOUND = new Audio('/sounds/rockfall.mp3');
+export const DIAMONDFALLSOUND = new Audio('/sounds/diamondfall.mp3');
+export let audioUnlocked = false; // Flag to track if audio is unlocked
 
 export const DIRECTIONS = {
   UP: { x: 0, y: -1 },

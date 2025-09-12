@@ -8,8 +8,9 @@ import { doMove, stepPlayerAlongPath, handlePlayerDeath } from './GameLogic.jsx'
 import { handleCanvasClick } from './ClickHandler';
 import GameUI from './GameUI';
 import './Boul.css';
+import { playMoveSound, unlockAudio } from './GameUtils.jsx';
 
-const { tileSize, cols, rows, PLAYER_MOVE_COOLDOWN } = GAME_CONFIG;
+const { tileSize, cols, rows, PLAYER_MOVE_COOLDOWN, audioUnlocked } = GAME_CONFIG;
 
 export default function Boul() {
   // Game state
@@ -53,11 +54,13 @@ export default function Boul() {
   };
 
   const draw = () => {
+      
     drawGame(canvasRef, gridRef, pathRef, dirtyTilesRef);
   };
 
   // Game event handlers
   const handleMove = (key) => {
+    unlockAudio();
     doMove(
       key, 
       playerRef, 
@@ -135,7 +138,10 @@ export default function Boul() {
     draw();
   };
 
+  // Removed local audioUnlockedRef and unlockAudio, now using global unlockAudio from GameUtils
+
   const handleClick = (e) => {
+    unlockAudio();
     handleCanvasClick(
       e,
       canvasRef,
@@ -150,6 +156,7 @@ export default function Boul() {
       draw
     );
   };
+
 
   // Initialize canvas and game
   useEffect(() => {

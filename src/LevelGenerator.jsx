@@ -4,7 +4,7 @@ import { index, markDirty } from './GameUtils';
 const { cols, rows } = GAME_CONFIG;
 
 export function createLevel(dirtyTilesRef) {
-  const grid = new Array(cols * rows).fill(TILE.DIRT);
+  const grid = new Array(cols * rows).fill(TILE.EMPTY);
   
   // Create border walls
   for (let x = 0; x < cols; x++) {
@@ -18,30 +18,45 @@ export function createLevel(dirtyTilesRef) {
   }
   
   // Fill interior with random elements
-  for (let y = 2; y < rows - 2; y++) {
-    for (let x = 2; x < cols - 2; x++) {
-      grid[index(x, y)] = Math.random() < 0.12 ? TILE.EMPTY : TILE.DIRT;
+  // for (let y = 2; y < rows - 2; y++) {
+  //   for (let x = 2; x < cols - 2; x++) {
+  //     if (x === 2 && y === 2) continue; // Leave player start empty
+  //     grid[index(x, y)] = Math.random() < 0.18 ? TILE.EMPTY : TILE.DIRT;
       
-      if (Math.random() < 0.08) {
-        grid[index(x, y)] = TILE.ROCK;
-      }
-      
-      if (Math.random() < 0.11) {
-        grid[index(x, y)] = TILE.DIAMOND;
-      }
-    }
-  }
-  
-  // Add random walls
-  for (let i = 0; i < 10; i++) {
-    const wx = 4 + Math.floor(Math.random() * (cols - 8));
-    const wy = 3 + Math.floor(Math.random() * (rows - 6));
-    grid[index(wx, wy)] = TILE.WALL;
-  }
+  //     if (Math.random() < 0.08) {
+  //       grid[index(x, y)] = TILE.ROCK;
+  //     } else if (Math.random() < 0.11) {
+  //       grid[index(x, y)] = TILE.DIAMOND;
+  //     } else if (Math.random() < 0.07) {
+  //       grid[index(x, y)] = TILE.WALL;
+  //     }
+  //   }
+  // }
+
   
   // Place player at starting position
   const playerPos = { x: 2, y: 2 };
   grid[index(playerPos.x, playerPos.y)] = TILE.PLAYER;
+
+  for (let y = 1; y < rows - 1; y++) {
+  for (let x = 1; x < cols - 1; x++) {
+
+    if (x === playerPos.x && y === playerPos.y) continue; // Leave player start empty
+    
+    const rand = Math.random();
+    
+    if (rand < 0.08) {
+      grid[index(x, y)] = TILE.ROCK;
+    } else if (rand < 0.19) { // 0.08 + 0.11
+      grid[index(x, y)] = TILE.DIAMOND;
+    } else if (rand < 0.26) { // 0.19 + 0.07
+      grid[index(x, y)] = TILE.WALL;
+    } else if (rand < 0.90) { 
+      grid[index(x, y)] = TILE.DIRT;
+    } 
+  }
+}
+  
   
   // Mark all tiles as dirty for initial render
   dirtyTilesRef.current.clear();
