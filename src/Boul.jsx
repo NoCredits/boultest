@@ -5,7 +5,7 @@ import { drawGame } from './GameRenderer';
 import { updateRocks } from './GamePhysics';
 import { InputHandler } from './InputHandler';
 import { doMove, stepPlayerAlongPath, handlePlayerDeath } from './GameLogic.jsx';
-import { handleCanvasClick } from './ClickHandler';
+import { handleCanvasClick, getCurrentPath, selectNextPath, selectPath, handleCanvasMouseMove } from './ClickHandler';
 import GameUI from './GameUI';
 import './Boul.css';
 import { playMoveSound, unlockAudio } from './GameUtils.jsx';
@@ -31,6 +31,7 @@ export default function Boul() {
   const pathRef = useRef([]);
   const selectedDestRef = useRef(null);
   const isPathActiveRef = useRef(false);
+  const selectedPathIndexRef = useRef(0);
   
   // Timing refs
   const lastTimeRef = useRef(performance.now());
@@ -55,11 +56,20 @@ export default function Boul() {
     pathRef.current = [];
     selectedDestRef.current = null;
     isPathActiveRef.current = false;
+    selectedPathIndexRef.current = 0;
+  };
+  
+  const handlePathSelect = (action, pathIndex) => {
+    if (action === 'cycle') {
+      selectNextPath(pathRef, selectedPathIndexRef, draw);
+    } else if (action === 'select' && pathIndex !== undefined) {
+      selectPath(pathRef, selectedPathIndexRef, pathIndex, draw);
+    }
   };
 
   const draw = () => {
 
-  drawGame(canvasRef, gridRef, cameraRef, pathRef, undefined, playerRef);
+  drawGame(canvasRef, gridRef, cameraRef, pathRef, selectedPathIndexRef, playerRef, isPathActiveRef);
   };
 
   // Game event handlers
@@ -122,8 +132,15 @@ export default function Boul() {
   const stepPlayer = () => {
     const prevX = playerRef.current.x;
     const prevY = playerRef.current.y;
+    
+    // Get the currently selected path
+    const currentPath = getCurrentPath(pathRef, selectedPathIndexRef);
+    
+    // Create a temporary ref for the current path
+    const currentPathRef = { current: currentPath };
+    
     stepPlayerAlongPath(
-      pathRef, 
+      currentPathRef, 
       playerRef, 
       gridRef, 
       setScore,
@@ -131,8 +148,17 @@ export default function Boul() {
       () => {
         isPathActiveRef.current = false;
         selectedDestRef.current = null;
+        // Clear all paths when path following is complete
+        pathRef.current = [];
+        selectedPathIndexRef.current = 0;
       }
     );
+    
+    // Update the main pathRef with the modified current path
+    if (pathRef.current && pathRef.current.length > 0) {
+      pathRef.current[selectedPathIndexRef.current] = currentPathRef.current;
+    }
+    
     // Set player fractional target to new position
     playerRef.current.fx = prevX;
     playerRef.current.fy = prevY;
@@ -155,6 +181,12 @@ export default function Boul() {
 
   const handleClick = (e) => {
     unlockAudio();
+    
+    // Ensure canvas has focus for keyboard events
+    if (canvasRef.current) {
+      canvasRef.current.focus();
+    }
+    
     handleCanvasClick(
       e,
       canvasRef,
@@ -163,12 +195,17 @@ export default function Boul() {
       pathRef,
       selectedDestRef,
       isPathActiveRef,
-      
       rockFallCooldownRef,
       handlePlayerDie,
       draw,
-      cameraRef
+      cameraRef,
+      selectedPathIndexRef,
+      'multiple' // pathfinding mode - can be 'single', 'multiple', 'alternate', 'randomized'
     );
+  };
+
+  const handleMouseMove = (e) => {
+    handleCanvasMouseMove(e, canvasRef, pathRef, cameraRef);
   };
 
 
@@ -228,12 +265,16 @@ function updateViewport(canvas) {
     
     // Set up input handler
     const inputHandler = inputHandlerRef.current;
-    inputHandler.setCallbacks(handleMove, clearPath);
+    inputHandler.setCallbacks(handleMove, clearPath, handlePathSelect);
     
     // Add event listeners
     window.addEventListener('keydown', inputHandler.handleKeyDown);
     window. addEventListener('keyup', inputHandler.handleKeyUp);
     canvas.addEventListener('click', handleClick);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    
+    // Give canvas focus for keyboard events
+    canvas.focus();
 
     // Event listener for resizing
   function handleResize() {
@@ -247,6 +288,7 @@ function updateViewport(canvas) {
       window.removeEventListener('keydown', inputHandler.handleKeyDown);
       window.removeEventListener('keyup', inputHandler.handleKeyUp);
       canvas.removeEventListener('click', handleClick);
+      canvas.removeEventListener('mousemove', handleMouseMove);
        window.removeEventListener('resize', handleResize);
       inputHandler.cleanup();
     };
@@ -304,8 +346,11 @@ function updateViewport(canvas) {
       moveCooldownRef.current -= dt;
       if (moveCooldownRef.current <= 0) {
         if (isPathActiveRef.current && pathRef.current.length > 0) {
-          stepPlayer();
-          moveCooldownRef.current = PLAYER_MOVE_COOLDOWN;
+          const currentPath = getCurrentPath(pathRef, selectedPathIndexRef);
+          if (currentPath.length > 0) {
+            stepPlayer();
+            moveCooldownRef.current = PLAYER_MOVE_COOLDOWN;
+          }
         }
       }
 
@@ -339,7 +384,7 @@ function updateViewport(canvas) {
         onReset={handleReset}
         onLoadLevel={handleLoadLevel}
       />
-      <canvas id="c" ref={canvasRef}></canvas>
+      <canvas id="c" ref={canvasRef} tabIndex="0"></canvas>
     </div>
   );
 }

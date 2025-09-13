@@ -6,13 +6,13 @@ import { seededRandom } from './GameUtils';
 // Cache for static tiles to avoid re-rendering
 // Removed tileCache and caching logic
 
-export function drawGame(canvasRef, gridRef, cameraRef, pathRef, time = performance.now()) {
+export function drawGame(canvasRef, gridRef, cameraRef, pathRef, selectedPathIndexRef, playerRef, isPathActiveRef, time = performance.now()) {
   const { tileSize, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, cols, rows } = GAME_CONFIG;
   const canvas = canvasRef.current;
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const grid = gridRef.current;
-  const path = pathRef.current || [];
+  const paths = pathRef.current || [];
   const cam = cameraRef.current;
   
   // Clear the canvas first
@@ -43,14 +43,105 @@ export function drawGame(canvasRef, gridRef, cameraRef, pathRef, time = performa
     }
   }
 
-  // Draw path overlay only for tiles inside viewport
-  ctx.fillStyle = 'rgba(255,255,0,0.3)';
-  for (const p of path) {
-    if (p.x >= cam.x - 1 && p.y >= cam.y - 1 &&
-        p.x < cam.x + VIEWPORT_WIDTH + 1 && p.y < cam.y + VIEWPORT_HEIGHT + 1) {
-      const screenX = (p.x - cam.x) * tileSize;
-      const screenY = (p.y - cam.y) * tileSize;
-      ctx.fillRect(screenX, screenY, tileSize, tileSize);
+  // Draw multiple path overlays with different colors and opacity
+  // Define colors for different paths
+  const pathColors = [
+    'rgba(255,255,0,0.5)',   // Yellow - primary/selected path
+    'rgba(0,255,255,0.3)',   // Cyan - alternate path 1
+    'rgba(255,0,255,0.3)',   // Magenta - alternate path 2
+    'rgba(0,255,0,0.3)',     // Green - additional paths
+    'rgba(255,128,0,0.3)'    // Orange - additional paths
+  ];
+  
+  const isPathActive = isPathActiveRef && isPathActiveRef.current;
+  
+  if (Array.isArray(paths) && paths.length > 0) {
+    // Draw non-selected paths first (lower opacity)
+    for (let pathIndex = 0; pathIndex < paths.length; pathIndex++) {
+      const path = paths[pathIndex];
+      const isSelected = selectedPathIndexRef && selectedPathIndexRef.current === pathIndex;
+      
+      // Use different colors and opacity for selected vs non-selected paths
+      if (isSelected) {
+        // Make active path more prominent with animated glow
+        if (isPathActive) {
+          const glow = 0.3 + 0.2 * Math.sin(time * 0.005); // Gentle pulsing
+          ctx.fillStyle = `rgba(255,255,100,${glow})`;
+        } else {
+          ctx.fillStyle = pathColors[0]; // Bright yellow for selected
+        }
+      } else {
+        ctx.fillStyle = pathColors[Math.min(pathIndex + 1, pathColors.length - 1)];
+      }
+      
+      // Draw path tiles that are in viewport
+      for (const p of path) {
+        if (p.x >= cam.x - 1 && p.y >= cam.y - 1 &&
+            p.x < cam.x + VIEWPORT_WIDTH + 1 && p.y < cam.y + VIEWPORT_HEIGHT + 1) {
+          const screenX = (p.x - cam.x) * tileSize;
+          const screenY = (p.y - cam.y) * tileSize;
+          
+          if (isSelected) {
+            // Draw selected path with border
+            ctx.fillRect(screenX, screenY, tileSize, tileSize);
+            ctx.strokeStyle = 'rgba(255,255,0,0.8)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(screenX + 1, screenY + 1, tileSize - 2, tileSize - 2);
+          } else {
+            // Draw non-selected paths with subtle hover hint
+            ctx.fillRect(screenX, screenY, tileSize, tileSize);
+            
+            // Add a subtle border to indicate it's clickable (only when multiple paths exist)
+            if (paths.length > 1 && !isPathActive) {
+              ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+              ctx.lineWidth = 1;
+              ctx.strokeRect(screenX + 1, screenY + 1, tileSize - 2, tileSize - 2);
+            }
+          }
+        }
+      }
+    }
+    
+    // Draw path numbers/indicators for multiple paths
+    if (paths.length > 1 && !isPathActive) {
+      ctx.font = `${Math.floor(tileSize * 0.4)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      for (let pathIndex = 0; pathIndex < paths.length; pathIndex++) {
+        const path = paths[pathIndex];
+        if (path.length > 0) {
+          const firstStep = path[0];
+          if (firstStep.x >= cam.x - 1 && firstStep.y >= cam.y - 1 &&
+              firstStep.x < cam.x + VIEWPORT_WIDTH + 1 && firstStep.y < cam.y + VIEWPORT_HEIGHT + 1) {
+            const screenX = (firstStep.x - cam.x) * tileSize;
+            const screenY = (firstStep.y - cam.y) * tileSize;
+            
+            // Draw path number with background for better visibility
+            const isSelected = selectedPathIndexRef && selectedPathIndexRef.current === pathIndex;
+            
+            // Background circle
+            ctx.fillStyle = isSelected ? 'rgba(255,255,0,0.9)' : 'rgba(0,0,0,0.7)';
+            ctx.beginPath();
+            ctx.arc(screenX + tileSize / 2, screenY + tileSize / 2, tileSize * 0.25, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Path number
+            ctx.fillStyle = isSelected ? 'black' : 'white';
+            ctx.fillText(
+              (pathIndex + 1).toString(), 
+              screenX + tileSize / 2, 
+              screenY + tileSize / 2
+            );
+          }
+        }
+      }
+      
+      // Add instruction text at the top
+      ctx.font = `${Math.floor(tileSize * 0.3)}px Arial`;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.fillText('Click on a path to select it', 10, 20);
     }
   }
 }

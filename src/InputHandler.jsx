@@ -8,11 +8,13 @@ export class InputHandler {
     this.keyRepeatTimersRef = { current: new Map() };
     this.onMoveCallback = null;
     this.onPathClearCallback = null;
+    this.onPathSelectCallback = null;
   }
 
-  setCallbacks(onMove, onPathClear) {
+  setCallbacks(onMove, onPathClear, onPathSelect) {
     this.onMoveCallback = onMove;
     this.onPathClearCallback = onPathClear;
+    this.onPathSelectCallback = onPathSelect;
   }
 
   handleKeyDown = (e) => {
@@ -20,6 +22,23 @@ export class InputHandler {
     if (this.keysPressedRef.current.has(key)) return;
     
     this.keysPressedRef.current.add(key);
+
+    // Handle path selection keys (Tab to cycle, number keys 1-5 for direct selection)
+    if (key === 'Tab') {
+      e.preventDefault();
+      if (this.onPathSelectCallback) {
+        this.onPathSelectCallback('cycle');
+      }
+      return;
+    }
+    
+    // Handle number keys for direct path selection
+    if (key >= '1' && key <= '5') {
+      if (this.onPathSelectCallback) {
+        this.onPathSelectCallback('select', parseInt(key) - 1);
+      }
+      return;
+    }
 
     const dir = getDirection(key);
     if (!dir) return;
