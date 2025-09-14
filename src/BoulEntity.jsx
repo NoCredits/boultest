@@ -10,9 +10,13 @@ import GameUI from './GameUI';
 import './Boul.css';
 import { playMoveSound, unlockAudio } from './GameUtils.jsx';
 
+// Entity System Foundation - Available for future enhancements
+import EntityManager from './entities/EntityManager';
+import './entities/TileEntities';
+
 const { tileSize, cols, rows, PLAYER_MOVE_COOLDOWN, audioUnlocked } = GAME_CONFIG;
 
-export default function Boul() {
+export default function BoulEntity() {
   // Game state
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);

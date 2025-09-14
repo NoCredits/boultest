@@ -33,6 +33,7 @@ export function coordsFromIndex(idx) {
 export function playMoveSound() {
   if (audioUnlocked) {
     MOVESOUND.currentTime = 0;
+    DIAMONDSOUND.volume = 0.5;
     MOVESOUND.play();
   }
 }
@@ -40,6 +41,7 @@ export function playMoveSound() {
 export function playDiamondSound() {
   if (audioUnlocked) {
     DIAMONDSOUND.currentTime = 0;
+    DIAMONDSOUND.volume = 0.5;
     DIAMONDSOUND.play();
   }
 }

@@ -108,31 +108,76 @@ export function drawGame(canvasRef, gridRef, cameraRef, pathRef, selectedPathInd
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
+      // Group paths by their starting position to handle overlapping numbers
+      const pathsByPosition = new Map();
+      
       for (let pathIndex = 0; pathIndex < paths.length; pathIndex++) {
         const path = paths[pathIndex];
         if (path.length > 0) {
           const firstStep = path[0];
-          if (firstStep.x >= cam.x - 1 && firstStep.y >= cam.y - 1 &&
-              firstStep.x < cam.x + VIEWPORT_WIDTH + 1 && firstStep.y < cam.y + VIEWPORT_HEIGHT + 1) {
-            const screenX = (firstStep.x - cam.x) * tileSize;
-            const screenY = (firstStep.y - cam.y) * tileSize;
+          const posKey = `${firstStep.x},${firstStep.y}`;
+          
+          if (!pathsByPosition.has(posKey)) {
+            pathsByPosition.set(posKey, []);
+          }
+          pathsByPosition.get(posKey).push({ pathIndex, firstStep });
+        }
+      }
+      
+      // Draw numbers for each position group
+      for (const [posKey, pathGroup] of pathsByPosition) {
+        const basePosition = pathGroup[0].firstStep;
+        
+        // Only draw if position is in viewport
+        if (basePosition.x >= cam.x - 1 && basePosition.y >= cam.y - 1 &&
+            basePosition.x < cam.x + VIEWPORT_WIDTH + 1 && basePosition.y < cam.y + VIEWPORT_HEIGHT + 1) {
+          
+          const baseScreenX = (basePosition.x - cam.x) * tileSize;
+          const baseScreenY = (basePosition.y - cam.y) * tileSize;
+          
+          // If multiple paths start from same position, arrange numbers in a circle
+          if (pathGroup.length > 1) {
+            const radius = tileSize * 0.4; // Distance from center
+            const angleStep = (2 * Math.PI) / pathGroup.length;
             
-            // Draw path number with background for better visibility
+            for (let i = 0; i < pathGroup.length; i++) {
+              const { pathIndex } = pathGroup[i];
+              const angle = i * angleStep - Math.PI / 2; // Start from top
+              const offsetX = Math.cos(angle) * radius;
+              const offsetY = Math.sin(angle) * radius;
+              
+              const screenX = baseScreenX + tileSize / 2 + offsetX;
+              const screenY = baseScreenY + tileSize / 2 + offsetY;
+              
+              const isSelected = selectedPathIndexRef && selectedPathIndexRef.current === pathIndex;
+              
+              // Background circle
+              ctx.fillStyle = isSelected ? 'rgba(255,255,0,0.9)' : 'rgba(0,0,0,0.7)';
+              ctx.beginPath();
+              ctx.arc(screenX, screenY, tileSize * 0.2, 0, 2 * Math.PI);
+              ctx.fill();
+              
+              // Path number
+              ctx.fillStyle = isSelected ? 'black' : 'white';
+              ctx.fillText((pathIndex + 1).toString(), screenX, screenY);
+            }
+          } else {
+            // Single path at this position - draw normally in center
+            const { pathIndex } = pathGroup[0];
+            const screenX = baseScreenX + tileSize / 2;
+            const screenY = baseScreenY + tileSize / 2;
+            
             const isSelected = selectedPathIndexRef && selectedPathIndexRef.current === pathIndex;
             
             // Background circle
             ctx.fillStyle = isSelected ? 'rgba(255,255,0,0.9)' : 'rgba(0,0,0,0.7)';
             ctx.beginPath();
-            ctx.arc(screenX + tileSize / 2, screenY + tileSize / 2, tileSize * 0.25, 0, 2 * Math.PI);
+            ctx.arc(screenX, screenY, tileSize * 0.25, 0, 2 * Math.PI);
             ctx.fill();
             
             // Path number
             ctx.fillStyle = isSelected ? 'black' : 'white';
-            ctx.fillText(
-              (pathIndex + 1).toString(), 
-              screenX + tileSize / 2, 
-              screenY + tileSize / 2
-            );
+            ctx.fillText((pathIndex + 1).toString(), screenX, screenY);
           }
         }
       }
