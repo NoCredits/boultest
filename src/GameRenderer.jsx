@@ -261,9 +261,9 @@ function drawDiamond(ctx, px, py, tileSize, time) {
   ctx.closePath();
   ctx.fill();
 
-  // Animated sparkles - this is why diamonds can't be cached
+  // Animated sparkles - this is why diamonds can't be cached (slowed down)
   const phase = (px * 13 + py * 7) % 1000;
-  const sparkleAlpha = 0.6 + 0.4 * Math.sin((time + phase) / 400);
+  const sparkleAlpha = 0.6 + 0.4 * Math.sin((time + phase) / 1200); // Slowed from 400 to 1200
   ctx.save();
   ctx.fillStyle = 'white';
   ctx.globalAlpha = sparkleAlpha;
@@ -271,18 +271,18 @@ function drawDiamond(ctx, px, py, tileSize, time) {
   ctx.arc(
     px + tileSize / 2,
     py + tileSize / 2,
-    tileSize * (0.12 + 0.06 * Math.abs(Math.sin((time + phase) / 600))),
+    tileSize * (0.12 + 0.06 * Math.abs(Math.sin((time + phase) / 1800))), // Slowed from 600 to 1800
     0, 2 * Math.PI
   );
   ctx.fill();
 
   const twinklePhase = (px * 17 + py * 23) % 1000;
-  const twinkle = 0.5 + 0.5 * Math.sin((time + twinklePhase) / 700);
+  const twinkle = 0.5 + 0.5 * Math.sin((time + twinklePhase) / 2100); // Slowed from 700 to 2100
   ctx.globalAlpha = twinkle * 0.6;
   ctx.beginPath();
   ctx.arc(
-    px + tileSize / 2 + tileSize * 0.14 * Math.sin((time + phase) / 900),
-    py + tileSize / 2 - tileSize * 0.11 * Math.cos((time + twinklePhase) / 800),
+    px + tileSize / 2 + tileSize * 0.14 * Math.sin((time + phase) / 2700), // Slowed from 900 to 2700
+    py + tileSize / 2 - tileSize * 0.11 * Math.cos((time + twinklePhase) / 2400), // Slowed from 800 to 2400
     tileSize * (0.06 + 0.06 * twinkle),
     0, 2 * Math.PI
   );

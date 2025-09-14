@@ -255,15 +255,21 @@ export class RockTile extends Tile {
 export class DiamondTile extends Tile {
   constructor(x, y) {
     super(x, y, 'diamond');
-    this.sparklePhase = Math.random() * Math.PI * 2;
+    // Use position-based phase so it's consistent across frames
+    this.sparklePhase = (x * 0.7 + y * 0.5) % (Math.PI * 2);
   }
 
   animate(deltaTime, gameState) {
     super.animate(deltaTime, gameState);
-    this.sparklePhase += deltaTime * 0.005;
+    // No animation needed - we'll use time directly in draw
   }
 
   draw(ctx, pixelX, pixelY, tileSize, gameState, grid, cols, mapX, mapY) {
+    // Use gameState time directly since tiles are recreated each frame
+    const currentTime = gameState || 0;
+    // Moderate speed for nice sparkle effect
+    const slowTime = currentTime / 1000; // Faster than 5000, but still slower than original
+    
     // Perfect math diamond shape (♦) that touches edges
     const centerX = pixelX + tileSize / 2;
     const centerY = pixelY + tileSize / 2;
@@ -288,30 +294,127 @@ export class DiamondTile extends Tile {
     ctx.closePath();
     ctx.fill();
     
-    // Enhanced sparkle effects
-    const sparkleIntensity = (Math.sin(this.sparklePhase) + 1) / 2;
-    const sparkle2 = (Math.sin(this.sparklePhase * 1.5 + Math.PI) + 1) / 2;
+    // Enhanced sparkle effects using slow time - random sparkles + bright beams
+    const baseSparkle = Math.sin(slowTime + this.sparklePhase);
+    const sparkleIntensity = Math.max(0, baseSparkle * baseSparkle); // Square for more natural fade
+    const sparkle2 = Math.max(0, Math.sin(slowTime * 1.3 + this.sparklePhase + Math.PI * 0.7) * 0.8);
+    const beamSparkle = Math.max(0, Math.sin(slowTime * 0.9 + this.sparklePhase + Math.PI * 0.3));
     
-    // Main cross sparkle (vertical and horizontal)
-    ctx.fillStyle = `rgba(255, 255, 255, ${sparkleIntensity * 0.9})`;
-    ctx.fillRect(centerX - 1, pixelY, 2, tileSize);        // Vertical line
-    ctx.fillRect(pixelX, centerY - 1, tileSize, 2);        // Horizontal line
+    // Bright beam sparkles (classic diamond effect) with random starting positions
+    if (beamSparkle > 0.2) {
+      const beamAlpha = beamSparkle * 0.9;
+      ctx.fillStyle = `rgba(255, 255, 255, ${beamAlpha})`;
+      
+      // Random beam center positions (different for each diamond)
+      const beamCenterX = centerX + (((mapX * 19 + mapY * 27) % 100) / 100 - 0.5) * halfSize * 0.4;
+      const beamCenterY = centerY + (((mapX * 23 + mapY * 31) % 100) / 100 - 0.5) * halfSize * 0.4;
+      
+      // Random beam angles (slight variation from perfect cross)
+      const angleOffset1 = (((mapX * 13 + mapY * 17) % 100) / 100 - 0.5) * 0.3; // ±0.15 radians
+      const angleOffset2 = (((mapX * 29 + mapY * 37) % 100) / 100 - 0.5) * 0.3;
+      
+      const beamWidth = 1 + beamSparkle * 1.5;
+      
+      // Main beams with slight angle variations
+      ctx.save();
+      ctx.translate(beamCenterX, beamCenterY);
+      
+      // First beam (mostly vertical with slight angle)
+      ctx.rotate(angleOffset1);
+      ctx.fillRect(-beamWidth/2, -halfSize * 0.8, beamWidth, halfSize * 1.6);
+      ctx.rotate(-angleOffset1); // Reset rotation
+      
+      // Second beam (mostly horizontal with slight angle)
+      ctx.rotate(Math.PI/2 + angleOffset2);
+      ctx.fillRect(-beamWidth/2, -halfSize * 0.8, beamWidth, halfSize * 1.6);
+      ctx.rotate(-Math.PI/2 - angleOffset2); // Reset rotation
+      
+      // Diagonal beams when very bright (also with random center and angles)
+      if (beamSparkle > 0.6) {
+        const diagAngle1 = Math.PI/4 + (((mapX * 41 + mapY * 43) % 100) / 100 - 0.5) * 0.2;
+        const diagAngle2 = -Math.PI/4 + (((mapX * 47 + mapY * 53) % 100) / 100 - 0.5) * 0.2;
+        
+        ctx.rotate(diagAngle1);
+        ctx.fillRect(-beamWidth/2, -halfSize * 0.6, beamWidth, halfSize * 1.2);
+        ctx.rotate(-diagAngle1);
+        
+        ctx.rotate(diagAngle2);
+        ctx.fillRect(-beamWidth/2, -halfSize * 0.6, beamWidth, halfSize * 1.2);
+        ctx.rotate(-diagAngle2);
+      }
+      
+      ctx.restore();
+    }
     
-    // Secondary diagonal sparkles
-    ctx.fillStyle = `rgba(255, 255, 255, ${sparkle2 * 0.6})`;
+    // Random sparkles within diamond (for variety)
+    if (sparkleIntensity > 0.1) {
+      const alpha = sparkleIntensity * 0.6;
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      
+      // Create 2-3 random sparkles within the diamond shape
+      const numMainSparkles = Math.floor(sparkleIntensity * 2) + 1;
+      for (let i = 0; i < numMainSparkles; i++) {
+        // Use position and time to create "random" but consistent positions
+        const seedX = (mapX * 17 + mapY * 23 + i * 13) % 100;
+        const seedY = (mapX * 31 + mapY * 37 + i * 19) % 100;
+        
+        // Convert to diamond-relative coordinates
+        const relX = (seedX / 100 - 0.5) * 0.6; // Smaller area to avoid beam overlap
+        const relY = (seedY / 100 - 0.5) * 0.6;
+        
+        // Ensure point is within diamond shape bounds
+        if (Math.abs(relX) + Math.abs(relY) < 0.5) {
+          const sparkleX = centerX + relX * halfSize + Math.sin(slowTime * 2.1 + i + this.sparklePhase) * 2;
+          const sparkleY = centerY + relY * halfSize + Math.cos(slowTime * 1.7 + i + this.sparklePhase) * 2;
+          
+          // Variable sparkle sizes
+          const sparkleSize = (0.5 + Math.sin(slowTime * 3 + i) * 0.3) * sparkleIntensity + 0.3;
+          
+          ctx.beginPath();
+          ctx.arc(sparkleX, sparkleY, sparkleSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
     
-    // Draw diagonal sparkles
+    // Secondary quick twinkles
+    if (sparkle2 > 0.4) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${sparkle2 * 0.4})`;
+      
+      // Quick twinkling points
+      const numSecondary = Math.floor(sparkle2 * 2);
+      for (let i = 0; i < numSecondary; i++) {
+        const seedX = (mapX * 41 + mapY * 43 + i * 29 + Math.floor(slowTime * 8)) % 100;
+        const seedY = (mapX * 47 + mapY * 53 + i * 31 + Math.floor(slowTime * 6)) % 100;
+        
+        const relX = (seedX / 100 - 0.5) * 0.4;
+        const relY = (seedY / 100 - 0.5) * 0.4;
+        
+        if (Math.abs(relX) + Math.abs(relY) < 0.3) {
+          const sparkleX = centerX + relX * halfSize;
+          const sparkleY = centerY + relY * halfSize;
+          const sparkleSize = sparkle2 * 0.6 + 0.2;
+          
+          ctx.beginPath();
+          ctx.arc(sparkleX, sparkleY, sparkleSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+    
+    // Subtle edge highlights
+    const edgeHighlight = Math.sin(slowTime * 0.8 + this.sparklePhase) * 0.3 + 0.7;
     ctx.save();
     ctx.translate(centerX, centerY);
     
-    // Diagonal lines following the diamond edges
+    ctx.strokeStyle = `rgba(255, 255, 255, ${edgeHighlight * 0.15})`;
+    ctx.lineWidth = 0.5 + edgeHighlight * 0.3;
     ctx.beginPath();
-    ctx.moveTo(-halfSize * 0.7, 0);
-    ctx.lineTo(halfSize * 0.7, 0);
-    ctx.moveTo(0, -halfSize * 0.7);
-    ctx.lineTo(0, halfSize * 0.7);
-    ctx.strokeStyle = `rgba(255, 255, 255, ${sparkle2 * 0.5})`;
-    ctx.lineWidth = 1;
+    ctx.moveTo(0, -halfSize * 0.9);
+    ctx.lineTo(halfSize * 0.9, 0);
+    ctx.lineTo(0, halfSize * 0.9);
+    ctx.lineTo(-halfSize * 0.9, 0);
+    ctx.closePath();
     ctx.stroke();
     
     ctx.restore();

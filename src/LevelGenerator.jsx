@@ -100,12 +100,12 @@ export function createClassicBoulderDashLevel() {
   }
 
   // Add walls to outline the passages (like the blue borders in original)
-  for (let x = 1; x < cols - 1; x++) {
-    grid[index(x, topPassageY - 1)] = TILE.WALL;
-    grid[index(x, topPassageY + 2)] = TILE.WALL;
-    grid[index(x, bottomPassageY - 1)] = TILE.WALL;
-    grid[index(x, bottomPassageY + 2)] = TILE.WALL;
-  }
+  // for (let x = 1; x < cols - 1; x++) {
+  //   grid[index(x, topPassageY - 1)] = TILE.WALL;
+  //   grid[index(x, topPassageY + 2)] = TILE.WALL;
+  //   grid[index(x, bottomPassageY - 1)] = TILE.WALL;
+  //   grid[index(x, bottomPassageY + 2)] = TILE.WALL;
+  // }
 
   // Add rock clusters matching the screenshot pattern
   // Upper area rocks (scattered throughout dirt)
