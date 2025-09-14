@@ -13,7 +13,7 @@ function neighbors(node, gridRef) {
     if (!inBounds(nx, ny)) continue;
     
     const t = gridRef.current[index(nx, ny)];
-    if (t !== TILE.WALL && t !== TILE.ROCK) {
+    if (t !== TILE.WALL && t !== TILE.ROCK && t !== TILE.BALLOON) {
       n.push({ x: nx, y: ny });
     }
   }

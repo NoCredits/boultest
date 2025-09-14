@@ -176,6 +176,27 @@ export function createClassicBoulderDashLevel() {
     }
   });
 
+  // Add balloons scattered around the map for strategic pushing
+  const balloons = [
+    // Balloons in top passage
+    {x: 4, y: 4}, {x: 12, y: 5}, {x: 18, y: 4},
+    
+    // Balloons in middle area (between passages)
+    {x: 6, y: 9}, {x: 12, y: 8}, {x: 17, y: 9},
+    
+    // Balloons in bottom passage  
+    {x: 5, y: 12}, {x: 11, y: 13}, {x: 16, y: 12},
+    
+    // A few balloons in dirt areas for strategic placement
+    {x: 8, y: 2}, {x: 15, y: 3}, {x: 10, y: 15},
+  ];
+
+  balloons.forEach(pos => {
+    if (pos.x < cols - 1 && pos.y < rows - 1) {
+      grid[index(pos.x, pos.y)] = TILE.BALLOON;
+    }
+  });
+
   // Place player at starting position (top-left, like in original)
   const playerPos = { x: 2, y: 2 };
   grid[index(playerPos.x, playerPos.y)] = TILE.PLAYER;

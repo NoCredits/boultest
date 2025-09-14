@@ -28,7 +28,7 @@ export class PlayerTile extends Tile {
     const idleTime = currentTime - this.lastInputTime;
     
     // Update sleep state (only transition to sleeping, never back to awake without input)
-    if (idleTime > 3000 && this.sleepState === 'awake') {
+    if (idleTime > 30000 && this.sleepState === 'awake') {
       this.sleepState = 'sleeping';
     }
     

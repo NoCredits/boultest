@@ -474,7 +474,7 @@ export default function BoulTileWorking() {
         pathRef.current = [];
         selectedPathIndexRef.current = 0;
       },
-      handlePlayerDie // Add the missing onPlayerDie parameter
+      handlePlayerDie
     );
     
     // Update player direction if position changed during path following
@@ -553,7 +553,8 @@ export default function BoulTileWorking() {
       draw,
       cameraRef,
       selectedPathIndexRef,
-      'multiple' // pathfinding mode - 'single', 'multiple', 'alternate', 'randomized'
+      'multiple', // pathfinding mode - 'single', 'multiple', 'alternate', 'randomized'
+      clearPath // Add clearPath function for escaping paths
     );
   };
 
@@ -610,6 +611,7 @@ function updateViewport(canvas) {
     window.addEventListener('keydown', inputHandler.handleKeyDown);
     window. addEventListener('keyup', inputHandler.handleKeyUp);
     canvas.addEventListener('click', handleClick);
+    canvas.addEventListener('contextmenu', handleClick); // Right-click support
     canvas.addEventListener('mousemove', handleMouseMove);
     
     // Give canvas focus for keyboard events
@@ -627,6 +629,7 @@ function updateViewport(canvas) {
       window.removeEventListener('keydown', inputHandler.handleKeyDown);
       window.removeEventListener('keyup', inputHandler.handleKeyUp);
       canvas.removeEventListener('click', handleClick);
+      canvas.removeEventListener('contextmenu', handleClick); // Right-click support
       canvas.removeEventListener('mousemove', handleMouseMove);
        window.removeEventListener('resize', handleResize);
       inputHandler.cleanup();
@@ -699,7 +702,6 @@ function updateViewport(canvas) {
           if (currentPath.length > 0) {
             stepPlayer();
             moveCooldownRef.current = PLAYER_MOVE_COOLDOWN;
-            // Don't mark for redraw on every automatic move - let the 100ms timer handle it
           }
         }
       }

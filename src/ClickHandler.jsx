@@ -18,9 +18,22 @@ export function handleCanvasClick(
   onDraw,
   cameraRef,
   selectedPathIndexRef = { current: 0 }, // Add ref to track which path is selected
-  pathfindingMode = 'multiple' // 'single', 'multiple', 'alternate', 'randomized'
+  pathfindingMode = 'multiple', // 'single', 'multiple', 'alternate', 'randomized'
+  clearPath = null // Function to clear paths when clicking on unreachable areas
 ) {
   e.preventDefault();
+  
+  // Right-click always clears paths (for desktop)
+  if (e.button === 2 && clearPath) {
+    clearPath();
+    return;
+  }
+  
+  // Track double-tap for touch devices
+  const currentTime = Date.now();
+  if (!window.lastClickTime) window.lastClickTime = 0;
+  if (!window.lastClickPos) window.lastClickPos = { x: -1, y: -1 };
+  
   const canvas = canvasRef.current;
   const rect = canvas.getBoundingClientRect();
 
@@ -43,10 +56,34 @@ const worldY = Math.floor(cameraRef.current.y + screenY / GAME_CONFIG.tileSize);
       // const gx = Math.floor((e.clientX - rect.left) / tileSize);
       // const gy = Math.floor((e.clientY - rect.top) / tileSize); 
 
+  // Double-tap detection for touch devices (only when paths exist and not activating)
+  const timeSinceLastClick = currentTime - window.lastClickTime;
+  const samePosition = (window.lastClickPos.x === worldX && window.lastClickPos.y === worldY);
+  
+  // Only clear on double-tap if we're not trying to activate a destination
+  const isDestinationActivation = selectedDestRef.current && 
+    selectedDestRef.current.x === worldX && selectedDestRef.current.y === worldY;
+  
+  if (timeSinceLastClick < 500 && samePosition && clearPath && !isDestinationActivation) {
+    // Double-tap detected - clear paths (but not when activating destination)
+    clearPath();
+    return;
+  }
+  
+  // Update click tracking
+  window.lastClickTime = currentTime;
+  window.lastClickPos = { x: worldX, y: worldY };
+
   if (!inBounds(worldX, worldY)) return;
   
   const clickedTile = gridRef.current[index(worldX, worldY)];
   const player = playerRef.current;
+
+  // Clear paths if clicking on the player character (universal escape mechanism)
+  if (worldX === player.x && worldY === player.y && clearPath) {
+    clearPath();
+    return;
+  }
 
   // Handle rock pushing
   if (clickedTile === TILE.ROCK) {
@@ -71,25 +108,39 @@ const worldY = Math.floor(cameraRef.current.y + screenY / GAME_CONFIG.tileSize);
     const clickedPathIndex = getClickedPathIndex(worldX, worldY, pathRef);
     
     // Handle pathfinding
+    console.log('Click at:', worldX, worldY, 'Destination:', selectedDestRef.current);
+    
     if (selectedDestRef.current && selectedDestRef.current.x === worldX && selectedDestRef.current.y === worldY) {
-      // Clicking on destination: Activate path following (use currently selected path)
+      // Clicking on destination: Always activate a path
+      console.log('Destination match! Activating path');
       isPathActiveRef.current = true;
       selectedDestRef.current = null;
       
-      // Clean up: keep only the selected path, remove others for cleaner display
+      // For multiple paths, use the selected one OR default to path 0
       if (pathRef.current && pathRef.current.length > 1) {
-        const selectedPath = getCurrentPath(pathRef, selectedPathIndexRef);
+        // Use selectedPathIndexRef if it's valid, otherwise default to 0
+        const pathIndex = (selectedPathIndexRef.current >= 0 && selectedPathIndexRef.current < pathRef.current.length) 
+          ? selectedPathIndexRef.current 
+          : 0;
+        
+        const selectedPath = pathRef.current[pathIndex] || pathRef.current[0] || [];
         pathRef.current = selectedPath.length > 0 ? [selectedPath] : [];
         selectedPathIndexRef.current = 0;
-        onDraw(); // Redraw to show only the active path
       }
-    } else if (clickedPathIndex >= 0 && pathRef.current && pathRef.current.length > 1) {
+      // For single path, just activate it directly
+      
+      onDraw();
+      return;
+    }
+    
+    if (clickedPathIndex >= 0 && pathRef.current && pathRef.current.length > 1) {
       // Click on path: Select that path (but don't activate yet)
       selectedPathIndexRef.current = clickedPathIndex;
       onDraw();
       return;
     } else {
       // First click: Preview multiple paths
+      console.log('Generating paths for destination:', worldX, worldY);
       const destination = { x: worldX, y: worldY };
       let paths = [];
       
@@ -111,11 +162,25 @@ const worldY = Math.floor(cameraRef.current.y + screenY / GAME_CONFIG.tileSize);
           break;
       }
       
-      // Store all paths and reset selected path index
+      console.log('Generated', paths.length, 'paths');
+      
+      // Store all paths and IMMEDIATELY set selected path index to 0
       pathRef.current = paths;
-      selectedPathIndexRef.current = 0;
       isPathActiveRef.current = false;
+      
+      // CRITICAL: Set the selected path index IMMEDIATELY and synchronously
+      selectedPathIndexRef.current = 0;
+      
+      // CRITICAL: Set destination IMMEDIATELY and synchronously BEFORE onDraw
       selectedDestRef.current = { x: worldX, y: worldY };
+      console.log('Set destination to:', selectedDestRef.current);
+      
+      // If no valid paths found, clear existing paths
+      if (paths.length === 0 && clearPath) {
+        clearPath();
+        return;
+      }
+      
       onDraw();
     }
   }

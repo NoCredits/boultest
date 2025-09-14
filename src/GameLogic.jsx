@@ -42,6 +42,26 @@ export function doMove(key, playerRef, gridRef, onScoreUpdate, onLevelComplete, 
     return;
   }
 
+  // Handle balloon pushing (balloons can be pushed in any direction)
+  if (targetTile === TILE.BALLOON) {
+    const pushX = tx + dir.x;
+    const pushY = ty + dir.y;
+    if (inBounds(pushX, pushY) && gridRef.current[index(pushX, pushY)] === TILE.EMPTY) {
+      // Move balloon and player
+      gridRef.current[index(pushX, pushY)] = TILE.BALLOON;
+      gridRef.current[index(tx, ty)] = TILE.EMPTY;
+      gridRef.current[index(player.x, player.y)] = TILE.EMPTY;
+
+      player.x = tx;
+      player.y = ty;
+      gridRef.current[index(player.x, player.y)] = TILE.PLAYER;
+
+      // Play move sound for balloon push
+      playMoveSound();
+    }
+    return;
+  }
+
   // Handle diamond collection
   if (targetTile === TILE.DIAMOND) {
     playDiamondSound();
@@ -92,7 +112,7 @@ export function stepPlayerAlongPath(pathRef, playerRef, gridRef,  onScoreUpdate,
   const t = grid[index(next.x, next.y)];
 
   // Check if path is blocked
-  if (t === TILE.WALL || t === TILE.ROCK) {
+  if (t === TILE.WALL || t === TILE.ROCK || t === TILE.BALLOON) {
     pathRef.current = [];
     onPathComplete();
     return;
@@ -209,8 +229,8 @@ export function updateLavaSpread(gridRef) {
             const neighborIndex = index(neighbor.x, neighbor.y);
             const neighborTile = grid[neighborIndex];
             
-            // Lava can spread to empty tiles or dirt (but not walls, rocks, diamonds, or player)
-            if (neighborTile === TILE.EMPTY || neighborTile === TILE.DIRT) {
+            // Lava can only spread to empty tiles (dirt acts as a barrier)
+            if (neighborTile === TILE.EMPTY) {
               // Only 20% chance to spread to each eligible neighbor
               if (Math.random() < 0.2) {
                 newLavaPositions.push(neighborIndex);
