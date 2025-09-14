@@ -60,6 +60,17 @@ export function createLevel() {
 }
   
   
+  // Initialize balloonStates for all balloons (so only moving ones explode)
+  if (typeof window !== 'undefined') {
+    if (!window.balloonStates) window.balloonStates = new Map();
+    for (let y = 1; y < rows - 1; y++) {
+      for (let x = 1; x < cols - 1; x++) {
+        if (grid[index(x, y)] === TILE.BALLOON) {
+          window.balloonStates.set(`${x},${y}`, { justMoved: false });
+        }
+      }
+    }
+  }
   return { grid, playerPos };
 }
 
@@ -197,12 +208,12 @@ export function createClassicBoulderDashLevel() {
     }
   });
 
-    // Initialize balloonStates for all balloons (so they explode correctly)
+    // Initialize balloonStates for all balloons (so only moving ones explode)
     if (typeof window !== 'undefined') {
       if (!window.balloonStates) window.balloonStates = new Map();
       balloons.forEach(pos => {
         const key = `${pos.x},${pos.y}`;
-        window.balloonStates.set(key, { justMoved: true });
+        window.balloonStates.set(key, { justMoved: false });
       });
     }
 

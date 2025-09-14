@@ -54,6 +54,9 @@ export function doMove(key, playerRef, gridRef, onScoreUpdate, onLevelComplete, 
 
       // Mark the pushed balloon as having just moved (so it will explode on collision)
       if (!window.balloonStates) window.balloonStates = new Map();
+      // Remove old state
+      window.balloonStates.delete(`${tx},${ty}`);
+      // Set new state
       window.balloonStates.set(`${pushX},${pushY}`, { justMoved: true });
 
       player.x = tx;

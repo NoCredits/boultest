@@ -12,6 +12,29 @@ export function updateRocks(dt, rockFallCooldownRef, gridRef, onPlayerDie) {
 export function updateBalloons(dt, balloonFloatCooldownRef, gridRef) {
   balloonFloatCooldownRef.current -= dt;
   if (balloonFloatCooldownRef.current > 0) return;
+  balloonFloatCooldownRef.current = GAME_CONFIG.ROCK_FALL_INTERVAL; // Same timing as rocks
+  // Debug: print each balloon's position and state
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const currentIndex = index(x, y);
+      const tileType = grid[currentIndex];
+      if (tileType === TILE.BALLOON) {
+        const balloonKey = `${x},${y}`;
+        const balloonState = window.balloonStates.get(balloonKey);
+        console.log(`[Balloon] At (${x},${y}) state:`, balloonState);
+      }
+    }
+  }
+  // Debug: log entry and balloon count
+  let balloonCount = 0;
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      if (gridRef.current[index(x, y)] === TILE.BALLOON) balloonCount++;
+    }
+  }
+  console.log(`[updateBalloons] Called. Balloons on map: ${balloonCount}`);
+  balloonFloatCooldownRef.current -= dt;
+  if (balloonFloatCooldownRef.current > 0) return;
   
   balloonFloatCooldownRef.current = GAME_CONFIG.ROCK_FALL_INTERVAL; // Same timing as rocks
   
@@ -43,6 +66,7 @@ export function updateBalloons(dt, balloonFloatCooldownRef, gridRef) {
         
         if (targetTile === TILE.EMPTY) {
           // Can float upward - move the balloon
+          console.debug(`[Balloon] (${x},${y}) floats to (${x},${targetY})`);
           movements.push({
             from: currentIndex,
             to: targetIndex,
@@ -53,11 +77,13 @@ export function updateBalloons(dt, balloonFloatCooldownRef, gridRef) {
           });
         } else if (targetTile === TILE.DIRT) {
           // Hit dirt - balloon stops peacefully (no explosion)
+          console.debug(`[Balloon] (${x},${y}) stops on dirt`);
           window.balloonStates.set(balloonKey, { justMoved: false });
         } else {
           // Hit obstacle (wall, rock, diamond, etc.)
           // Only explode if balloon moved in previous frame
           if (balloonState.justMoved) {
+            console.debug(`[Balloon] (${x},${y}) explodes on obstacle (${targetTile})`);
             movements.push({
               from: currentIndex,
               to: currentIndex, // Stay in same place but change type
@@ -67,12 +93,14 @@ export function updateBalloons(dt, balloonFloatCooldownRef, gridRef) {
             });
           } else {
             // Balloon was already stopped, keep it stopped
+            console.debug(`[Balloon] (${x},${y}) hits obstacle (${targetTile}) but does not explode (justMoved: false)`);
             window.balloonStates.set(balloonKey, { justMoved: false });
           }
         }
       } else {
         // Hit top of map - explode if moved last frame
         if (balloonState.justMoved) {
+          console.debug(`[Balloon] (${x},${y}) explodes at top of map`);
           movements.push({
             from: currentIndex,
             to: currentIndex,
@@ -89,13 +117,14 @@ export function updateBalloons(dt, balloonFloatCooldownRef, gridRef) {
   movements.forEach(move => {
     if (move.explode) {
       // Balloon explosion - change to explosion diamond
+      console.debug(`[Balloon] Explosion at (${fromIndex(move.from).x},${fromIndex(move.from).y})`);
       grid[move.from] = TILE.EXPLOSION_DIAMOND;
       window.balloonStates.delete(move.balloonKey);
     } else {
       // Normal movement
+      console.debug(`[Balloon] Move from (${fromIndex(move.from).x},${fromIndex(move.from).y}) to (${fromIndex(move.to).x},${fromIndex(move.to).y})`);
       grid[move.from] = TILE.EMPTY;
       grid[move.to] = move.tileType;
-      
       // Update balloon state tracking
       window.balloonStates.delete(move.balloonKey);
       window.balloonStates.set(move.newKey, { justMoved: true });
