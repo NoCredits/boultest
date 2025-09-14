@@ -5,7 +5,9 @@ export const TILE = {
   DIRT: 2, 
   ROCK: 3, 
   DIAMOND: 4, 
-  PLAYER: 5 
+  PLAYER: 5,
+  BALLOON: 6,
+  EXPLOSION_DIAMOND: 7
 };
 
 export const TILE_COLORS = {
@@ -14,7 +16,9 @@ export const TILE_COLORS = {
   [TILE.DIRT]: '#8b5a2b',
   [TILE.ROCK]: '#888',
   [TILE.DIAMOND]: '#0ff',
-  [TILE.PLAYER]: '#ff0'
+  [TILE.PLAYER]: '#ff0',
+  [TILE.BALLOON]: '#ff0080',
+  [TILE.EXPLOSION_DIAMOND]: '#ff6600'
 };
 
 export const GAME_CONFIG = {

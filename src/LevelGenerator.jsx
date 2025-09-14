@@ -51,6 +51,8 @@ export function createLevel() {
       grid[index(x, y)] = TILE.DIAMOND;
     } else if (rand < 0.26) { // 0.19 + 0.07
       grid[index(x, y)] = TILE.WALL;
+    } else if (rand < 0.28) { // 0.26 + 0.02 - rare balloons
+      grid[index(x, y)] = TILE.BALLOON;
     } else if (rand < 0.90) { 
       grid[index(x, y)] = TILE.DIRT;
     } 

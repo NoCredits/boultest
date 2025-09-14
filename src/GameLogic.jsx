@@ -48,6 +48,13 @@ export function doMove(key, playerRef, gridRef, onScoreUpdate, onLevelComplete, 
     console.log('Diamond collected!');
     onScoreUpdate(prevScore => prevScore + 1);
   }
+
+  // Handle explosion diamond collection (higher value)
+  if (targetTile === TILE.EXPLOSION_DIAMOND) {
+    playDiamondSound();
+    console.log('Explosion Diamond collected! +5 points!');
+    onScoreUpdate(prevScore => prevScore + 5); // Higher value for special diamonds
+  }
 if (targetTile === TILE.DIRT) playMoveSound();
   // Execute move
   gridRef.current[index(player.x, player.y)] = TILE.EMPTY;
@@ -57,7 +64,7 @@ if (targetTile === TILE.DIRT) playMoveSound();
   player.y = ty;
   gridRef.current[index(player.x, player.y)] = TILE.PLAYER;
 
-  const remainingDiamonds = gridRef.current.filter(tile => tile === TILE.DIAMOND).length;
+  const remainingDiamonds = gridRef.current.filter(tile => tile === TILE.DIAMOND || tile === TILE.EXPLOSION_DIAMOND).length;
   console.log(`Remaining diamonds: ${remainingDiamonds}`);
   // Always check for level completion after move
   if (remainingDiamonds === 0) {
@@ -89,6 +96,13 @@ export function stepPlayerAlongPath(pathRef, playerRef, gridRef,  onScoreUpdate,
     onScoreUpdate(s => s + 1);
   }
 
+  // Handle explosion diamond collection (higher value)
+  if (t === TILE.EXPLOSION_DIAMOND) {
+    playDiamondSound();
+    console.log('Explosion Diamond collected! +5 points!');
+    onScoreUpdate(s => s + 5);
+  }
+
   if (t === TILE.DIRT) playMoveSound();
 
   // Move player
@@ -99,7 +113,7 @@ export function stepPlayerAlongPath(pathRef, playerRef, gridRef,  onScoreUpdate,
   grid[index(playerRef.current.x, playerRef.current.y)] = TILE.PLAYER;
 
   // Always check for level completion after move
-  const remainingDiamonds = grid.filter(tile => tile === TILE.DIAMOND).length;
+  const remainingDiamonds = grid.filter(tile => tile === TILE.DIAMOND || tile === TILE.EXPLOSION_DIAMOND).length;
   if (remainingDiamonds === 0) {
     pathRef.current = [];
     onPathComplete();

@@ -1,23 +1,15 @@
 import { useState } from 'react';
 import Boul from './Boul';
-import BoulEntity from './BoulEntity';
-import SimpleEntityDemo from './SimpleEntityDemo';
-import BasicEntityTest from './BasicEntityTest';
 import TileDemo from './TileDemo';
-import BoulTileProduction from './BoulTileProduction';
-import BoulTileWorking from './BoulTileWorking';
+import BoulTileEnhanced from './BoulTileEnhanced';
 
 function App() {
-  const [currentVersion, setCurrentVersion] = useState('original'); // 'original', 'entity', 'demo', 'test', 'tiles', 'production', 'working'
+  const [currentVersion, setCurrentVersion] = useState('enhanced'); // 'original', 'tiles', 'enhanced'
 
   const renderCurrentVersion = () => {
     switch (currentVersion) {
-      case 'entity': return <BoulEntity />;
-      case 'demo': return <SimpleEntityDemo />;
-      case 'test': return <BasicEntityTest />;
       case 'tiles': return <TileDemo />;
-      case 'production': return <BoulTileProduction />;
-      case 'working': return <BoulTileWorking />;
+      case 'enhanced': return <BoulTileEnhanced />;
       default: return <Boul />;
     }
   };
@@ -39,49 +31,7 @@ function App() {
               cursor: 'pointer'
             }}
           >
-            Original
-          </button>
-          <button 
-            onClick={() => setCurrentVersion('entity')}
-            style={{
-              padding: '8px 16px',
-              fontSize: '14px',
-              backgroundColor: currentVersion === 'entity' ? '#4CAF50' : '#ddd',
-              color: currentVersion === 'entity' ? 'white' : 'black',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer'
-            }}
-          >
-            Entity System
-          </button>
-          <button 
-            onClick={() => setCurrentVersion('test')}
-            style={{
-              padding: '8px 16px',
-              fontSize: '14px',
-              backgroundColor: currentVersion === 'test' ? '#4CAF50' : '#ddd',
-              color: currentVersion === 'test' ? 'white' : 'black',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer'
-            }}
-          >
-            🧪 Basic Test
-          </button>
-          <button 
-            onClick={() => setCurrentVersion('demo')}
-            style={{
-              padding: '8px 16px',
-              fontSize: '14px',
-              backgroundColor: currentVersion === 'demo' ? '#4CAF50' : '#ddd',
-              color: currentVersion === 'demo' ? 'white' : 'black',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer'
-            }}
-          >
-            ✨ Entity Demo
+            📊 Original
           </button>
           <button 
             onClick={() => setCurrentVersion('tiles')}
@@ -98,43 +48,25 @@ function App() {
             🎨 Tile Demo
           </button>
           <button 
-            onClick={() => setCurrentVersion('production')}
+            onClick={() => setCurrentVersion('enhanced')}
             style={{
               padding: '8px 16px',
               fontSize: '14px',
-              backgroundColor: currentVersion === 'production' ? '#4CAF50' : '#ddd',
-              color: currentVersion === 'production' ? 'white' : 'black',
+              backgroundColor: currentVersion === 'enhanced' ? '#4CAF50' : '#ddd',
+              color: currentVersion === 'enhanced' ? 'white' : 'black',
               border: 'none',
               borderRadius: '5px',
               cursor: 'pointer'
             }}
           >
-            🚀 Production
-          </button>
-          <button 
-            onClick={() => setCurrentVersion('working')}
-            style={{
-              padding: '8px 16px',
-              fontSize: '14px',
-              backgroundColor: currentVersion === 'working' ? '#4CAF50' : '#ddd',
-              color: currentVersion === 'working' ? 'white' : 'black',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer'
-            }}
-          >
-            🔧 Working
+            ✨ Enhanced Game
           </button>
         </div>
         <div style={{ fontSize: '14px', color: '#666' }}>
           Current Version: <strong>
-            {currentVersion === 'original' && 'Original (Legacy Grid)'}
-            {currentVersion === 'entity' && 'Entity System (Functional)'}
-            {currentVersion === 'test' && 'Basic Entity Test'}
-            {currentVersion === 'demo' && 'Entity Demo (Enhanced Visuals)'}
+            {currentVersion === 'original' && 'Original Boulder Dash (Preserved)'}
             {currentVersion === 'tiles' && 'Tile Class System Demo'}
-            {currentVersion === 'production' && 'Production (Tile Classes)'}
-            {currentVersion === 'working' && 'Working Copy (Clean Test)'}
+            {currentVersion === 'enhanced' && 'Enhanced Game with Tile Classes'}
           </strong>
         </div>
       </div>
@@ -142,40 +74,42 @@ function App() {
       {renderCurrentVersion()}
       
       <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '5px' }}>
-        <h3>🎮 Version Comparison:</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px', marginTop: '10px' }}>
+        <h3>🎮 Boulder Dash Versions:</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginTop: '10px' }}>
           <div>
             <h4>📊 Original:</h4>
             <ul style={{ fontSize: '12px', lineHeight: '1.4' }}>
-              <li>Grid-based tiles</li>
-              <li>Full game functionality</li>
-              <li>Pathfinding system</li>
+              <li>✅ Full game functionality</li>
+              <li>✅ Grid-based rendering</li>
+              <li>✅ Pathfinding system</li>
+              <li>✅ Original graphics & starfield</li>
+              <li>🛡️ Preserved as reference</li>
             </ul>
           </div>
           <div>
-            <h4>🔧 Entity System:</h4>
+            <h4>🎨 Tile Demo:</h4>
             <ul style={{ fontSize: '12px', lineHeight: '1.4' }}>
-              <li>Same as original</li>
-              <li>Entity architecture</li>
-              <li>All features work</li>
+              <li>✅ Object-oriented tile classes</li>
+              <li>✅ Separated entity logic</li>
+              <li>✅ Enhanced graphics showcase</li>
+              <li>✅ Clean architecture demo</li>
+              <li>🧪 Development sandbox</li>
             </ul>
           </div>
           <div>
-            <h4>🧪 Basic Test:</h4>
+            <h4>✨ Enhanced Game:</h4>
             <ul style={{ fontSize: '12px', lineHeight: '1.4' }}>
-              <li>Simple entity rendering</li>
-              <li>Debug information</li>
-              <li>Fixed patterns</li>
+              <li>🎯 Production-ready version</li>
+              <li>✅ Tile-based OOP architecture</li>
+              <li>✅ Enhanced visuals & animations</li>
+              <li>✅ Animated directional player</li>
+              <li>✅ All original features + more</li>
             </ul>
           </div>
-          <div>
-            <h4>✨ Entity Demo:</h4>
-            <ul style={{ fontSize: '12px', lineHeight: '1.4' }}>
-              <li>Enhanced visuals</li>
-              <li>Dynamic level</li>
-              <li>Full entity system</li>
-            </ul>
-          </div>
+        </div>
+        <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#e8f5e8', borderRadius: '5px' }}>
+          <strong>🚀 Recommended:</strong> Use <em>"Enhanced Game"</em> for the full experience with object-oriented tile classes, 
+          enhanced graphics, animated player, and all the improvements while preserving the original gameplay.
         </div>
       </div>
     </div>

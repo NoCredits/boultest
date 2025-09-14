@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { tileFactory, TileGridUtils } from './tiles';
-import { testTileSystem } from './TileSystemTest';
 
 const TileDemo = () => {
   const canvasRef = useRef(null);
@@ -19,11 +18,8 @@ const TileDemo = () => {
   useEffect(() => {
     console.log('🎮 Initializing Tile Demo...');
     
-    // Run the tile system test
-    const testResult = testTileSystem();
-    if (testResult.success) {
-      setInfo('Tile system test passed! Click tiles to change them.');
-    }
+    // Initialize the tile demo
+    setInfo('Tile system ready! Click tiles to change them.');
 
     // Create initial demo grid
     createDemoGrid();

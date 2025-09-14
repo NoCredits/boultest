@@ -97,3 +97,60 @@ function canRollRight(x, y, grid) {
     grid[belowId] !== TILE.PLAYER
   );
 } 
+
+// Track balloons that moved on the previous update
+let balloonsThatJustMoved = new Set();
+
+export function updateBalloons(dt, balloonFloatCooldownRef, gridRef) {
+  balloonFloatCooldownRef.current -= dt;
+  if (balloonFloatCooldownRef.current > 0) return;
+  
+  balloonFloatCooldownRef.current = GAME_CONFIG.ROCK_FALL_INTERVAL; // Same timing as rocks
+  const grid = gridRef.current;
+  
+  const newMovedBalloons = new Set();
+  
+  // Process from top to bottom to avoid processing same balloon multiple times
+  for (let y = 1; y < rows - 1; y++) {
+    for (let x = 1; x < cols - 1; x++) {
+      const id = index(x, y);
+      
+      // Only process balloons
+      if (grid[id] !== TILE.BALLOON) continue;
+      
+      const aboveId = index(x, y - 1);
+      const aboveTile = grid[aboveId];
+      const balloonKey = `${x},${y}`;
+      
+      // Try to float upward
+      if (aboveTile === TILE.EMPTY) {
+        // Successfully move up
+        grid[aboveId] = grid[id];
+        grid[id] = TILE.EMPTY;
+        
+        // Track that this balloon moved (use new position)
+        newMovedBalloons.add(`${x},${y-1}`);
+        continue; // Successfully moved, check next balloon
+      }
+      
+      // If balloon hits dirt, just stop (no explosion, no movement)
+      if (aboveTile === TILE.DIRT) {
+        continue; // Stay in place, no explosion
+      }
+      
+      // Check if this balloon moved in the previous frame
+      const balloonJustMoved = balloonsThatJustMoved.has(balloonKey);
+      
+      // Only explode if balloon moved in previous frame and now hits solid obstacle
+      if (balloonJustMoved && (aboveTile === TILE.WALL || aboveTile === TILE.ROCK || 
+          aboveTile === TILE.DIAMOND || aboveTile === TILE.PLAYER ||
+          aboveTile === TILE.EXPLOSION_DIAMOND || aboveTile === TILE.BALLOON)) {
+        grid[id] = TILE.EXPLOSION_DIAMOND;
+      }
+      // If balloon didn't move in previous frame, it stays stationary (no explosion)
+    }
+  }
+  
+  // Update the set of balloons that moved this frame for next frame's check
+  balloonsThatJustMoved = newMovedBalloons;
+} 

@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { GAME_CONFIG } from './GameConstants';
 import { createLevel } from './LevelGenerator';
 import { drawGame } from './GameRenderer';
-import { updateRocks } from './GamePhysics';
+import { updateRocks, updateBalloons } from './GamePhysics';
 import { InputHandler } from './InputHandler';
 import { doMove, stepPlayerAlongPath, handlePlayerDeath } from './GameLogic.jsx';
 import { handleCanvasClick, getCurrentPath, selectNextPath, selectPath, handleCanvasMouseMove } from './ClickHandler';
@@ -41,6 +41,7 @@ export default function BoulTileWorking() {
   const lastTimeRef = useRef(performance.now());
   const moveCooldownRef = useRef(0);
   const rockFallCooldownRef = useRef(0);
+  const balloonFloatCooldownRef = useRef(0);
   
   // Input handler
   const inputHandlerRef = useRef(new InputHandler());
@@ -123,7 +124,9 @@ export default function BoulTileWorking() {
       2: 'dirt',      // Dirt  
       3: 'rock',      // Rock
       4: 'diamond',   // Diamond
-      5: 'player'     // Player
+      5: 'player',    // Player
+      6: 'balloon',   // Balloon
+      7: 'explosion_diamond'  // Explosion Diamond
     };
     
     // Calculate viewport bounds
@@ -589,6 +592,9 @@ function updateViewport(canvas) {
 
       // Update rock physics
       updateRocks(dt, rockFallCooldownRef, gridRef, handlePlayerDie);
+      
+      // Update balloon physics
+      updateBalloons(dt, balloonFloatCooldownRef, gridRef);
 
       // Handle path following
       moveCooldownRef.current -= dt;

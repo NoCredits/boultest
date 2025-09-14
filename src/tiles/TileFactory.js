@@ -5,7 +5,8 @@ import {
   BalloonTile, 
   LavaTile, 
   RubyCrystalTile, 
-  EmeraldCrystalTile 
+  EmeraldCrystalTile,
+  ExplosionDiamondTile
 } from './SpecialTiles';
 
 /**
@@ -30,7 +31,8 @@ export class TileFactory {
       ['balloon', BalloonTile],
       ['lava', LavaTile],
       ['ruby_crystal', RubyCrystalTile],
-      ['emerald_crystal', EmeraldCrystalTile]
+      ['emerald_crystal', EmeraldCrystalTile],
+      ['explosion_diamond', ExplosionDiamondTile]
     ]);
   }
 
