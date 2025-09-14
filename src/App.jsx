@@ -3,15 +3,21 @@ import Boul from './Boul';
 import BoulEntity from './BoulEntity';
 import SimpleEntityDemo from './SimpleEntityDemo';
 import BasicEntityTest from './BasicEntityTest';
+import TileDemo from './TileDemo';
+import BoulTileProduction from './BoulTileProduction';
+import BoulTileWorking from './BoulTileWorking';
 
 function App() {
-  const [currentVersion, setCurrentVersion] = useState('original'); // 'original', 'entity', 'demo', 'test'
+  const [currentVersion, setCurrentVersion] = useState('original'); // 'original', 'entity', 'demo', 'test', 'tiles', 'production', 'working'
 
   const renderCurrentVersion = () => {
     switch (currentVersion) {
       case 'entity': return <BoulEntity />;
       case 'demo': return <SimpleEntityDemo />;
       case 'test': return <BasicEntityTest />;
+      case 'tiles': return <TileDemo />;
+      case 'production': return <BoulTileProduction />;
+      case 'working': return <BoulTileWorking />;
       default: return <Boul />;
     }
   };
@@ -77,6 +83,48 @@ function App() {
           >
             ✨ Entity Demo
           </button>
+          <button 
+            onClick={() => setCurrentVersion('tiles')}
+            style={{
+              padding: '8px 16px',
+              fontSize: '14px',
+              backgroundColor: currentVersion === 'tiles' ? '#4CAF50' : '#ddd',
+              color: currentVersion === 'tiles' ? 'white' : 'black',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            🎨 Tile Demo
+          </button>
+          <button 
+            onClick={() => setCurrentVersion('production')}
+            style={{
+              padding: '8px 16px',
+              fontSize: '14px',
+              backgroundColor: currentVersion === 'production' ? '#4CAF50' : '#ddd',
+              color: currentVersion === 'production' ? 'white' : 'black',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            🚀 Production
+          </button>
+          <button 
+            onClick={() => setCurrentVersion('working')}
+            style={{
+              padding: '8px 16px',
+              fontSize: '14px',
+              backgroundColor: currentVersion === 'working' ? '#4CAF50' : '#ddd',
+              color: currentVersion === 'working' ? 'white' : 'black',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            🔧 Working
+          </button>
         </div>
         <div style={{ fontSize: '14px', color: '#666' }}>
           Current Version: <strong>
@@ -84,6 +132,9 @@ function App() {
             {currentVersion === 'entity' && 'Entity System (Functional)'}
             {currentVersion === 'test' && 'Basic Entity Test'}
             {currentVersion === 'demo' && 'Entity Demo (Enhanced Visuals)'}
+            {currentVersion === 'tiles' && 'Tile Class System Demo'}
+            {currentVersion === 'production' && 'Production (Tile Classes)'}
+            {currentVersion === 'working' && 'Working Copy (Clean Test)'}
           </strong>
         </div>
       </div>

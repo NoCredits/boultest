@@ -48,7 +48,7 @@ export function doMove(key, playerRef, gridRef, onScoreUpdate, onLevelComplete, 
     console.log('Diamond collected!');
     onScoreUpdate(prevScore => prevScore + 1);
   }
-
+if (targetTile === TILE.DIRT) playMoveSound();
   // Execute move
   gridRef.current[index(player.x, player.y)] = TILE.EMPTY;
 
