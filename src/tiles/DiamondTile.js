@@ -1,4 +1,6 @@
 import { Tile } from './Tile';
+import { TILE } from '../GameConstants';
+import { playDiamondFallSound } from '../GameUtils';
 
 /**
  * Diamond Tile - collectible treasure
@@ -8,6 +10,7 @@ export class DiamondTile extends Tile {
     super(x, y, 'diamond');
     // Use position-based phase so it's consistent across frames
     this.sparklePhase = (x * 0.7 + y * 0.5) % (Math.PI * 2);
+    this.isFalling = false;
   }
 
   animate(deltaTime, gameState) {
@@ -184,6 +187,137 @@ export class DiamondTile extends Tile {
 
   canMove() {
     return true;
+  }
+
+  /**
+   * Update physics for diamond tile - handles falling and rolling (same as rock)
+   * @param {number} deltaTime - Time since last update
+   * @param {Array} grid - The game grid
+   * @param {number} cols - Number of columns
+   * @param {number} rows - Number of rows
+   * @param {Object} gameState - Current game state
+   * @returns {Object|null} Physics update result
+   */
+  updatePhysics(deltaTime, grid, cols, rows, gameState) {
+    // Don't start new movement if already moving smoothly
+    if (this.isMoving) {
+      return null;
+    }
+    
+    // PRIORITY 1: Fall straight down if space is empty
+    if (this.canFallDown(grid, cols, rows)) {
+      const targetY = this.y + 1;
+      
+      // Start smooth movement instead of instant grid change
+      this.startSmoothMovement(this.x, targetY, 120); // 120ms smooth fall (faster than rocks)
+      
+      const result = {
+        from: { x: this.x, y: this.y },
+        to: { x: this.x, y: targetY },
+        smoothMovement: true
+      };
+      
+      // Check if will hit something next turn and play sound
+      if (targetY + 1 < rows && grid[(targetY + 1) * cols + this.x] !== TILE.EMPTY) {
+        result.sound = 'diamondfall';
+      }
+      
+      // Check if player is crushed
+      if (this.wouldKillPlayer(this.x, targetY, grid, cols, rows)) {
+        result.killPlayer = true;
+      }
+      
+      this.isFalling = true;
+      return result;
+    }
+    
+    // PRIORITY 2: Try to roll left (only if can't fall straight)
+    if (this.canRollLeft(grid, cols, rows)) {
+      const targetX = this.x - 1;
+      const targetY = this.y + 1;
+      
+      // Start smooth diagonal movement
+      this.startSmoothMovement(targetX, targetY, 150); // 150ms for diagonal roll
+      
+      const result = {
+        from: { x: this.x, y: this.y },
+        to: { x: targetX, y: targetY },
+        sound: 'diamondfall',
+        smoothMovement: true
+      };
+      
+      // Check if player is crushed
+      if (this.wouldKillPlayer(targetX, targetY, grid, cols, rows)) {
+        result.killPlayer = true;
+      }
+      
+      this.isFalling = true;
+      return result;
+    }
+    
+    // PRIORITY 3: Try to roll right (only if can't fall straight or left)
+    if (this.canRollRight(grid, cols, rows)) {
+      const targetX = this.x + 1;
+      const targetY = this.y + 1;
+      
+      // Start smooth diagonal movement
+      this.startSmoothMovement(targetX, targetY, 150); // 150ms for diagonal roll
+      
+      const result = {
+        from: { x: this.x, y: this.y },
+        to: { x: targetX, y: targetY },
+        sound: 'diamondfall',
+        smoothMovement: true
+      };
+      
+      // Check if player is crushed
+      if (this.wouldKillPlayer(targetX, targetY, grid, cols, rows)) {
+        result.killPlayer = true;
+      }
+      
+      this.isFalling = true;
+      return result;
+    }
+    
+    // No movement possible - stop falling animation
+    this.isFalling = false;
+    return null;
+  }
+
+  /**
+   * Override base canRollLeft to add diamond-specific logic
+   */
+  canRollLeft(grid, cols, rows) {
+    if (this.x - 1 < 0 || this.y + 1 >= rows) return false;
+    
+    const belowIndex = (this.y + 1) * cols + this.x;
+    const leftIndex = this.y * cols + (this.x - 1);
+    const leftBelowIndex = (this.y + 1) * cols + (this.x - 1);
+    
+    // Can roll left if: space to left is empty, space below-left is empty,
+    // there's something solid below current position, and it's not the player
+    return grid[leftIndex] === TILE.EMPTY && 
+           grid[leftBelowIndex] === TILE.EMPTY && 
+           (grid[belowIndex] === TILE.ROCK || grid[belowIndex] === TILE.DIAMOND) &&
+           grid[belowIndex] !== TILE.PLAYER;
+  }
+
+  /**
+   * Override base canRollRight to add diamond-specific logic
+   */
+  canRollRight(grid, cols, rows) {
+    if (this.x + 1 >= cols || this.y + 1 >= rows) return false;
+    
+    const belowIndex = (this.y + 1) * cols + this.x;
+    const rightIndex = this.y * cols + (this.x + 1);
+    const rightBelowIndex = (this.y + 1) * cols + (this.x + 1);
+    
+    // Can roll right if: space to right is empty, space below-right is empty,
+    // there's something solid below current position, and it's not the player
+    return grid[rightIndex] === TILE.EMPTY && 
+           grid[rightBelowIndex] === TILE.EMPTY && 
+           (grid[belowIndex] === TILE.ROCK || grid[belowIndex] === TILE.DIAMOND) &&
+           grid[belowIndex] !== TILE.PLAYER;
   }
 
   getBaseColor() {

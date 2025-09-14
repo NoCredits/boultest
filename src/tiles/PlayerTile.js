@@ -11,42 +11,93 @@ export class PlayerTile extends Tile {
     this.walkCycle = 0;
     this.lastX = x;
     this.lastY = y;
+    this.lastDirectionChange = 0;
+    this.lastInputTime = performance.now(); // Simple: last time user did ANYTHING
+    this.sleepState = 'awake'; // 'awake' or 'sleeping'
   }
 
   animate(deltaTime, gameState) {
     super.animate(deltaTime, gameState);
     
-    // Detect movement direction from position changes
-    if (this.x !== this.lastX || this.y !== this.lastY) {
-      this.isMoving = true;
-      
-      // Update facing direction based on movement
-      if (this.x > this.lastX) {
-        this.facingDirection = 'right';
-      } else if (this.x < this.lastX) {
-        this.facingDirection = 'left';
-      } else if (this.y > this.lastY) {
-        this.facingDirection = 'down';
-      } else if (this.y < this.lastY) {
-        this.facingDirection = 'up';
-      }
-      
-      this.lastX = this.x;
-      this.lastY = this.y;
-    } else {
-      this.isMoving = false;
+    const currentTime = performance.now();
+    
+    // Use the smooth movement system's isMoving state instead of position checking
+    // (The base class handles the smooth movement animation)
+
+    // Simple idle calculation
+    const idleTime = currentTime - this.lastInputTime;
+    
+    // Update sleep state (only transition to sleeping, never back to awake without input)
+    if (idleTime > 3000 && this.sleepState === 'awake') {
+      this.sleepState = 'sleeping';
     }
     
-    if (this.isMoving) {
-      // Walking animation
-      this.walkCycle += deltaTime * 0.01;
-      this.properties.walkBob = Math.sin(this.walkCycle) * 2;
-      this.properties.eyeBlink = Math.sin(this.walkCycle * 2) * 0.5 + 0.5;
+    // Animation based on movement state and sleep state
+    if (this.sleepState === 'sleeping') {
+      // Override everything when sleeping
+      this.properties.expression = 'sleeping';
+      this.properties.eyeBlink = 0.2; // Closed eyes
+      this.properties.breatheOffset = Math.round(Math.sin(currentTime / 4000) * 0.3); // Gentle sleep breathing
+    } else if (this.isMoving) {
+      // Simple, nice walking animation
+      const walkTime = currentTime / 2000; // 2 second walking cycle - nice pace
+      this.properties.walkBob = Math.round(Math.sin(walkTime) * 1); // Simple 1 pixel bob
+      
+      // Single occasional blink while walking (every 4 seconds)
+      const blinkTime = (currentTime % 4000) / 4000; // Reset every 4 seconds
+      this.properties.eyeBlink = (blinkTime > 0.1 && blinkTime < 0.15) ? 0.2 : 1; // Single quick blink
+      
+      // Facial expressions while moving (less frequent)
+      const expressionTime = (currentTime % 10000) / 10000; // Every 10 seconds
+      if (expressionTime > 0.1 && expressionTime < 0.15) {
+        this.properties.expression = 'thinking';
+      } else if (expressionTime > 0.6 && expressionTime < 0.65) {
+        this.properties.expression = 'happy';
+      } else {
+        this.properties.expression = 'normal';
+      }
     } else {
-      // Breathing animation when idle
-      this.properties.breatheOffset = Math.sin(this.animationTime * 0.003) * 1;
-      this.properties.eyeBlink = Math.sin(this.animationTime * 0.001) * 0.3 + 0.7;
+      // Simple, calm idle animation (awake only)
+      const breatheTime = currentTime / 4000; // 4 second breathing cycle
+      const blinkTime = (currentTime % 5000) / 5000; // Reset every 5 seconds
+      
+      this.properties.breatheOffset = Math.round(Math.sin(breatheTime) * 0.5); // Gentle breathing
+      // Single occasional blink when idle
+      this.properties.eyeBlink = (blinkTime > 0.1 && blinkTime < 0.15) ? 0.2 : 1;
+      
+      // Normal idle expressions (awake)
+      const expressionTime = (currentTime % 15000) / 15000; // Every 15 seconds
+      if (expressionTime > 0.1 && expressionTime < 0.15) {
+        this.properties.expression = 'thinking';
+      } else if (expressionTime > 0.3 && expressionTime < 0.35) {
+        this.properties.expression = 'happy';
+      } else if (expressionTime > 0.6 && expressionTime < 0.65) {
+        this.properties.expression = 'ashamed';
+      } else {
+        this.properties.expression = 'normal';
+      }
     }
+  }
+  
+  // Method to be called when user explicitly moves the player
+  setDirection(direction) {
+    if (['left', 'right', 'up', 'down'].includes(direction)) {
+      this.facingDirection = direction;
+    }
+  }
+
+  // Simple reset - called on ANY user input
+  resetIdleTimer() {
+    this.lastInputTime = performance.now();
+    this.sleepState = 'awake'; // Wake up on any input
+  }
+
+  // Simple position update - no timer logic here
+  updatePosition(x, y) {
+    this.lastX = this.x;
+    this.lastY = this.y;
+    this.x = x;
+    this.y = y;
   }
 
   draw(ctx, pixelX, pixelY, tileSize, gameState, grid, cols, mapX, mapY) {
@@ -74,69 +125,126 @@ export class PlayerTile extends Tile {
     ctx.arc(centerX, bodyY, tileSize * 0.4, 0, Math.PI * 2);
     ctx.fill();
     
-    // Player eyes based on facing direction
-    ctx.fillStyle = '#000000';
-    let eyeSize = 3 * eyeBlink; // Blinking effect
+    // Player eyes based on facing direction (Pac-Man ghost style)
+    const expression = this.properties.expression || 'normal';
+    const isBlinking = eyeBlink < 1;
+    const isSleeping = expression === 'sleeping';
     
-    switch (this.facingDirection) {
-      case 'right':
-        // Eyes looking right
-        ctx.fillRect(centerX + 2, bodyY - 6, eyeSize, eyeSize);
-        ctx.fillRect(centerX + 2, bodyY - 2, eyeSize, eyeSize);
-        break;
-      case 'left':
-        // Eyes looking left
-        ctx.fillRect(centerX - 5, bodyY - 6, eyeSize, eyeSize);
-        ctx.fillRect(centerX - 5, bodyY - 2, eyeSize, eyeSize);
-        break;
-      case 'up':
-        // Eyes looking up
-        ctx.fillRect(centerX - 4, bodyY - 8, eyeSize, eyeSize);
-        ctx.fillRect(centerX + 1, bodyY - 8, eyeSize, eyeSize);
-        break;
-      case 'down':
-        // Eyes looking down
-        ctx.fillRect(centerX - 4, bodyY + 2, eyeSize, eyeSize);
-        ctx.fillRect(centerX + 1, bodyY + 2, eyeSize, eyeSize);
-        break;
+    // Define eye position constants
+    const eyeRadius = 4;
+    const eyeOffsetX = 6;
+    const eyeOffsetY = 4;
+    
+    if (isSleeping) {
+      // Draw closed eyes (horizontal lines)
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      
+      // Left closed eye
+      ctx.beginPath();
+      ctx.moveTo(centerX - eyeOffsetX - 3, bodyY - eyeOffsetY);
+      ctx.lineTo(centerX - eyeOffsetX + 3, bodyY - eyeOffsetY);
+      ctx.stroke();
+      
+      // Right closed eye
+      ctx.beginPath();
+      ctx.moveTo(centerX + eyeOffsetX - 3, bodyY - eyeOffsetY);
+      ctx.lineTo(centerX + eyeOffsetX + 3, bodyY - eyeOffsetY);
+      ctx.stroke();
+    } else {
+      // Normal eyes - yellow when blinking, white when normal
+      ctx.fillStyle = isBlinking ? '#FFD700' : '#FFFFFF';
+      
+      // Left eye background
+      ctx.beginPath();
+      ctx.arc(centerX - eyeOffsetX, bodyY - eyeOffsetY, eyeRadius, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Right eye background  
+      ctx.beginPath();
+      ctx.arc(centerX + eyeOffsetX, bodyY - eyeOffsetY, eyeRadius, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Draw pupils only when not blinking
+      if (!isBlinking) {
+        ctx.fillStyle = '#000000';
+        const pupilRadius = 2;
+        let pupilOffsetX = 0;
+        let pupilOffsetY = 0;
+        
+        switch (this.facingDirection) {
+          case 'right':
+            pupilOffsetX = 2;
+            pupilOffsetY = 0;
+            break;
+          case 'left':
+            pupilOffsetX = -2;
+            pupilOffsetY = 0;
+            break;
+          case 'up':
+            pupilOffsetX = 0;
+            pupilOffsetY = -2;
+            break;
+          case 'down':
+            pupilOffsetX = 0;
+            pupilOffsetY = 2;
+            break;
+        }
+        
+        // Left pupil
+        ctx.beginPath();
+        ctx.arc(centerX - eyeOffsetX + pupilOffsetX, bodyY - eyeOffsetY + pupilOffsetY, pupilRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Right pupil
+        ctx.beginPath();
+        ctx.arc(centerX + eyeOffsetX + pupilOffsetX, bodyY - eyeOffsetY + pupilOffsetY, pupilRadius, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
     
-    // Add directional indicator (small arrow or line)
-    ctx.strokeStyle = '#FFA500';
+    // Draw mouth based on expression (expression already declared above)
+    ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
     ctx.beginPath();
     
-    switch (this.facingDirection) {
-      case 'right':
-        // Arrow pointing right
-        ctx.moveTo(centerX + tileSize * 0.3, bodyY);
-        ctx.lineTo(centerX + tileSize * 0.4, bodyY - 3);
-        ctx.moveTo(centerX + tileSize * 0.3, bodyY);
-        ctx.lineTo(centerX + tileSize * 0.4, bodyY + 3);
+    switch (expression) {
+      case 'happy':
+        // Big cheerful smile
+        ctx.arc(centerX, bodyY + 2, 9, 0.1 * Math.PI, 0.9 * Math.PI);
+        ctx.stroke();
         break;
-      case 'left':
-        // Arrow pointing left
-        ctx.moveTo(centerX - tileSize * 0.3, bodyY);
-        ctx.lineTo(centerX - tileSize * 0.4, bodyY - 3);
-        ctx.moveTo(centerX - tileSize * 0.3, bodyY);
-        ctx.lineTo(centerX - tileSize * 0.4, bodyY + 3);
+      case 'thinking':
+        // Thoughtful expression - small line mouth
+        ctx.moveTo(centerX - 4, bodyY + 6);
+        ctx.lineTo(centerX + 4, bodyY + 6);
+        ctx.stroke();
         break;
-      case 'up':
-        // Arrow pointing up
-        ctx.moveTo(centerX, bodyY - tileSize * 0.3);
-        ctx.lineTo(centerX - 3, bodyY - tileSize * 0.4);
-        ctx.moveTo(centerX, bodyY - tileSize * 0.3);
-        ctx.lineTo(centerX + 3, bodyY - tileSize * 0.4);
+      case 'ashamed':
+        // Slightly sad/embarrassed - small downward curve
+        ctx.arc(centerX, bodyY + 8, 4, 1.2 * Math.PI, 1.8 * Math.PI);
+        ctx.stroke();
         break;
-      case 'down':
-        // Arrow pointing down
-        ctx.moveTo(centerX, bodyY + tileSize * 0.3);
-        ctx.lineTo(centerX - 3, bodyY + tileSize * 0.4);
-        ctx.moveTo(centerX, bodyY + tileSize * 0.3);
-        ctx.lineTo(centerX + 3, bodyY + tileSize * 0.4);
+      case 'sleeping':
+        // Sleeping - small open mouth with Zzz
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.ellipse(centerX, bodyY + 6, 3, 1.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw Zzz above head
+        ctx.fillStyle = '#666666';
+        ctx.font = '8px Arial';
+        ctx.fillText('z', centerX + 8, bodyY - 8);
+        ctx.fillText('z', centerX + 12, bodyY - 12);
+        ctx.fillText('Z', centerX + 16, bodyY - 16);
+        break;
+      default: // normal
+        // Regular friendly smile
+        ctx.arc(centerX, bodyY + 4, 6, 0.2 * Math.PI, 0.8 * Math.PI);
+        ctx.stroke();
         break;
     }
-    ctx.stroke();
     
     // Player outline for better visibility with walking pulse
     const outlineWidth = this.isMoving ? 2 + Math.sin(this.walkCycle * 3) * 0.5 : 2;
@@ -146,20 +254,7 @@ export class PlayerTile extends Tile {
     ctx.arc(centerX, bodyY, tileSize * 0.4, 0, Math.PI * 2);
     ctx.stroke();
     
-    // Add moving sparkles when walking
-    if (this.isMoving) {
-      for (let i = 0; i < 3; i++) {
-        const sparkleAngle = this.walkCycle + i * (Math.PI * 2 / 3);
-        const sparkleRadius = tileSize * 0.5 + Math.sin(this.walkCycle * 2 + i) * tileSize * 0.1;
-        const sparkleX = centerX + Math.cos(sparkleAngle) * sparkleRadius;
-        const sparkleY = bodyY + Math.sin(sparkleAngle) * sparkleRadius;
-        
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + Math.sin(this.walkCycle * 3 + i) * 0.3})`;
-        ctx.beginPath();
-        ctx.arc(sparkleX, sparkleY, 1, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
+    // Removed moving sparkles to eliminate flickering
   }
 
   getBaseColor() {
@@ -173,12 +268,5 @@ export class PlayerTile extends Tile {
 
   setMoving(moving) {
     this.isMoving = moving;
-  }
-  
-  updatePosition(x, y) {
-    this.lastX = this.x;
-    this.lastY = this.y;
-    this.x = x;
-    this.y = y;
   }
 }

@@ -9,12 +9,14 @@ export class InputHandler {
     this.onMoveCallback = null;
     this.onPathClearCallback = null;
     this.onPathSelectCallback = null;
+    this.onResetIdleCallback = null;
   }
 
-  setCallbacks(onMove, onPathClear, onPathSelect) {
+  setCallbacks(onMove, onPathClear, onPathSelect, onResetIdle) {
     this.onMoveCallback = onMove;
     this.onPathClearCallback = onPathClear;
     this.onPathSelectCallback = onPathSelect;
+    this.onResetIdleCallback = onResetIdle;
   }
 
   handleKeyDown = (e) => {
@@ -22,6 +24,11 @@ export class InputHandler {
     if (this.keysPressedRef.current.has(key)) return;
     
     this.keysPressedRef.current.add(key);
+
+    // Reset idle timer on any initial key press (not repeats)
+    if (this.onResetIdleCallback) {
+      this.onResetIdleCallback();
+    }
 
     // Handle path selection keys (Tab to cycle, number keys 1-5 for direct selection)
     if (key === 'Tab') {

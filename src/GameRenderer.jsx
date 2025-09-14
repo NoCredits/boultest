@@ -2,6 +2,7 @@
 // Example cameraRef.current = { x: float, y: float, targetX: float, targetY: float, speed: float }
 import { TILE, TILE_COLORS, GAME_CONFIG } from './GameConstants';
 import { seededRandom } from './GameUtils';
+import { physicsManager } from './PhysicsManager';
 
 // Cache for static tiles to avoid re-rendering
 // Removed tileCache and caching logic
@@ -30,9 +31,20 @@ export function drawGame(canvasRef, gridRef, cameraRef, pathRef, selectedPathInd
       const i = mapY * cols + mapX;
       const tile = grid[i];
       
-      // Calculate screen position
-      const screenX = (mapX - cam.x) * tileSize;
-      const screenY = (mapY - cam.y) * tileSize;
+      // Calculate base screen position
+      let screenX = (mapX - cam.x) * tileSize;
+      let screenY = (mapY - cam.y) * tileSize;
+      
+      // For physics tiles, check if we have a tile instance with smooth movement
+      if (tile === TILE.ROCK || tile === TILE.DIAMOND || tile === TILE.BALLOON) {
+        const tileInstance = physicsManager.createTileInstance(tile, mapX, mapY);
+        if (tileInstance && tileInstance.isMoving) {
+          // Use smooth position instead of grid position
+          const visualPos = tileInstance.getVisualPosition();
+          screenX = (visualPos.x - cam.x) * tileSize;
+          screenY = (visualPos.y - cam.y) * tileSize;
+        }
+      }
       
       // Skip tiles that are completely off-screen
       if (screenX < -tileSize || screenY < -tileSize || 

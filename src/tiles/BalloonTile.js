@@ -1,4 +1,5 @@
 import { Tile } from './Tile';
+import { TILE } from '../GameConstants';
 
 /**
  * Balloon - floats upward instead of falling
@@ -9,12 +10,15 @@ export class BalloonTile extends Tile {
     this.properties.floats = true;
     this.properties.color = color;
     this.floatPhase = Math.random() * Math.PI * 2;
+    this.justMoved = false; // Track if balloon moved in previous frame
   }
 
   animate(deltaTime, gameState) {
     super.animate(deltaTime, gameState);
-    this.floatPhase += deltaTime * 0.003;
-    this.properties.floatOffset = Math.sin(this.floatPhase) * 2;
+    // Use gameState time like DiamondTile for consistent timing with much larger divisor
+    const currentTime = (gameState && gameState.time) || performance.now();
+    const floatTime = currentTime / 6000; // 6 second float cycle
+    this.properties.floatOffset = Math.sin(floatTime) * 2;
   }
 
   draw(ctx, pixelX, pixelY, tileSize, gameState, grid, cols, mapX, mapY) {
@@ -45,6 +49,80 @@ export class BalloonTile extends Tile {
 
   canMove() {
     return true;
+  }
+
+  /**
+   * Update physics for balloon tile - handles floating upward and explosions
+   * @param {number} deltaTime - Time since last update
+   * @param {Array} grid - The game grid
+   * @param {number} cols - Number of columns
+   * @param {number} rows - Number of rows
+   * @param {Object} gameState - Current game state
+   * @returns {Object|null} Physics update result
+   */
+  updatePhysics(deltaTime, grid, cols, rows, gameState) {
+    // Don't start new movement if already moving smoothly
+    if (this.isMoving) {
+      return null;
+    }
+    
+    const aboveIndex = (this.y - 1) * cols + this.x;
+    const aboveTile = grid[aboveIndex];
+    
+    // Try to float upward
+    if (aboveTile === TILE.EMPTY) {
+      const targetY = this.y - 1;
+      
+      // Start smooth upward movement
+      this.startSmoothMovement(this.x, targetY, 200); // 200ms smooth float
+      
+      const result = {
+        from: { x: this.x, y: this.y },
+        to: { x: this.x, y: targetY },
+        smoothMovement: true
+      };
+      
+      this.justMoved = true;
+      return result;
+    }
+    
+    // If balloon hits dirt, just stop (no explosion, no movement)
+    if (aboveTile === TILE.DIRT) {
+      this.justMoved = false;
+      return null;
+    }
+    
+    // Only explode if balloon moved in previous frame and now hits solid obstacle
+    if (this.justMoved && (aboveTile === TILE.WALL || aboveTile === TILE.ROCK || 
+        aboveTile === TILE.DIAMOND || aboveTile === TILE.PLAYER ||
+        aboveTile === TILE.EXPLOSION_DIAMOND || aboveTile === TILE.BALLOON)) {
+      
+      const result = {
+        from: { x: this.x, y: this.y },
+        to: { x: this.x, y: this.y }, // Stay in same position but change type
+        explode: true // Signal to change to EXPLOSION_DIAMOND
+      };
+      
+      this.justMoved = false;
+      return result;
+    }
+    
+    // If balloon didn't move in previous frame, it stays stationary (no explosion)
+    this.justMoved = false;
+    return null;
+  }
+
+  /**
+   * Check if this balloon can float upward
+   * @param {Array} grid - The game grid
+   * @param {number} cols - Number of columns
+   * @param {number} rows - Number of rows
+   * @returns {boolean} True if can float up
+   */
+  canFloatUp(grid, cols, rows) {
+    if (this.y - 1 < 0) return false;
+    const aboveIndex = (this.y - 1) * cols + this.x;
+    return grid[aboveIndex] === TILE.EMPTY;
   }
 
   getBaseColor() {

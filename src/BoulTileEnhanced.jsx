@@ -5,6 +5,7 @@ import { drawGame } from './GameRenderer';
 import { updateRocks, updateBalloons } from './GamePhysics';
 import { InputHandler } from './InputHandler';
 import { doMove, stepPlayerAlongPath, handlePlayerDeath, updateLavaSpread } from './GameLogic.jsx';
+import { getDirection } from './GameConstants.jsx';
 import { handleCanvasClick, getCurrentPath, selectNextPath, selectPath, handleCanvasMouseMove } from './ClickHandler';
 import GameUI from './GameUI';
 import './Boul.css';
@@ -38,6 +39,9 @@ export default function BoulTileWorking() {
   const selectedPathIndexRef = useRef(0);
   
   // Timing refs
+  // Dirty flag to control when redraws are needed
+
+  const lastDrawTimeRef = useRef(0);
   const lastTimeRef = useRef(performance.now());
   const moveCooldownRef = useRef(0);
   const rockFallCooldownRef = useRef(0);
@@ -60,6 +64,12 @@ export default function BoulTileWorking() {
   };
 
   const clearPath = () => {
+    // Reset idle timer when clearing path
+    const tile = playerTileRef.current;
+    if (tile) {
+      tile.resetIdleTimer();
+    }
+    
     pathRef.current = [];
     selectedDestRef.current = null;
     isPathActiveRef.current = false;
@@ -67,6 +77,12 @@ export default function BoulTileWorking() {
   };
   
   const handlePathSelect = (action, pathIndex) => {
+    // Reset idle timer on path actions
+    const tile = playerTileRef.current;
+    if (tile) {
+      tile.resetIdleTimer();
+    }
+    
     if (action === 'cycle') {
       selectNextPath(pathRef, selectedPathIndexRef, draw);
     } else if (action === 'select' && pathIndex !== undefined) {
@@ -78,6 +94,10 @@ export default function BoulTileWorking() {
   const drawAnimatedStars = (ctx, px, py, tileSize, time, mapX, mapY) => {
     // Use map coordinates for consistent star positions
     const baseSeed = mapX * 73856093 + mapY * 19349663;
+    
+    // Much more aggressive throttling - only update every 500ms (2 times per second)
+    const throttledTime = Math.floor(time / 500) * 500;
+    
     for (let i = 0; i < 3; i++) {
       const starSeed = baseSeed + i * 83492791;
       const rx = px + 4 + seededRandom(starSeed) * (tileSize - 8);
@@ -87,15 +107,15 @@ export default function BoulTileWorking() {
       ctx.arc(rx, ry, 0.7 + seededRandom(starSeed + 2) * 1.1, 0, 2 * Math.PI);
       ctx.fillStyle = '#fff';
       
-      // Individual random blinking: each star has its own unique timing
-      const blinkThreshold = seededRandom(starSeed + 6); // 0 → 1
+      // Much slower, more natural star blinking using heavily throttled time
+      const blinkThreshold = seededRandom(starSeed + 6) * 0.9 + 0.05; // 0.05 → 0.95 (even fewer blinks)
       const phaseOffset = (starSeed % 1000) / 1000 * Math.PI * 2; // unique per star
-      const blinkSpeed = 1200 + (starSeed % 1000); // slower per star
-      const blinkPhase = Math.abs(Math.sin(time / blinkSpeed + phaseOffset));
+      const blinkSpeed = 15000 + (starSeed % 10000); // Even slower: 15-25 second cycles
+      const blinkPhase = Math.abs(Math.sin(throttledTime / blinkSpeed + phaseOffset));
       
-      let alpha = 0.7 + seededRandom(starSeed + 3) * 0.3;
+      let alpha = 0.8 + seededRandom(starSeed + 3) * 0.2; // Brighter base
       if (blinkPhase > blinkThreshold) {
-        alpha *= 0.1 + seededRandom(starSeed + 5) * 0.4; // dim blink with random intensity
+        alpha *= 0.3 + seededRandom(starSeed + 5) * 0.2; // Very gentle dimming
       }
       ctx.globalAlpha = alpha;
       ctx.fill();
@@ -103,7 +123,7 @@ export default function BoulTileWorking() {
     }
   };
 
-  const draw = () => {
+  const draw = (deltaTime = 16) => {
     // Enhanced tile rendering only
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -138,12 +158,13 @@ export default function BoulTileWorking() {
     
     // Draw starfield background for the entire viewport
     const currentTime = performance.now();
+    
     for (let y = startY; y < endY; y++) {
       for (let x = startX; x < endX; x++) {
         const screenX = (x - camera.x) * tileSize;
         const screenY = (y - camera.y) * tileSize;
         
-        // Draw stars for all positions (will be behind tiles)
+        // Draw stars for all positions (sparkles removed from player, so no more flickering)
         drawAnimatedStars(ctx, screenX, screenY, tileSize, currentTime, x, y);
       }
     }
@@ -179,15 +200,15 @@ export default function BoulTileWorking() {
     if (player && playerTile) {
       // Update player tile position and animate
       playerTile.updatePosition(player.x, player.y);
-      playerTile.animate(16, { time: currentTime }); // 16ms approximate delta time
+      playerTile.animate(deltaTime, { time: currentTime }); // Use actual delta time
       
       // Check if player is in viewport
-      if (player.x >= camera.x - 1 && player.y >= camera.y - 1 &&
-          player.x < camera.x + Math.ceil(canvas.width / tileSize) + 1 && 
-          player.y < camera.y + Math.ceil(canvas.height / tileSize) + 1) {
+      if (player.fx >= camera.x - 1 && player.fy >= camera.y - 1 &&
+          player.fx < camera.x + Math.ceil(canvas.width / tileSize) + 1 && 
+          player.fy < camera.y + Math.ceil(canvas.height / tileSize) + 1) {
         
-        const screenX = (player.x - camera.x) * tileSize;
-        const screenY = (player.y - camera.y) * tileSize;
+        const screenX = (player.fx - camera.x) * tileSize;
+        const screenY = (player.fy - camera.y) * tileSize;
         
         // Draw animated player
         playerTile.draw(ctx, screenX, screenY, tileSize, currentTime, grid, GAME_CONFIG.cols, player.x, player.y);
@@ -347,8 +368,16 @@ export default function BoulTileWorking() {
   // Game event handlers
   const handleMove = (key) => {
     unlockAudio();
+    
+    // Reset idle timer when handleMove is called
+    const tile = playerTileRef.current;
+    if (tile) {
+      tile.resetIdleTimer();
+    }
+    
     const prevX = playerRef.current.x;
     const prevY = playerRef.current.y;
+    
     doMove(
       key, 
       playerRef, 
@@ -358,9 +387,29 @@ export default function BoulTileWorking() {
       (dt) => updateRocks(dt, rockFallCooldownRef, gridRef, handlePlayerDie),
       handlePlayerDie
     );
-    // Set player fractional target to new position
-    playerRef.current.fx = prevX;
-    playerRef.current.fy = prevY;
+    
+    // Update player direction if position actually changed (successful move)
+    const playerTile = playerTileRef.current;
+    if (playerTile && (playerRef.current.x !== prevX || playerRef.current.y !== prevY)) {
+      // Get direction from the key press
+      const dir = getDirection(key);
+      if (dir) {
+        if (dir.x > 0) {
+          playerTile.setDirection('right');
+        } else if (dir.x < 0) {
+          playerTile.setDirection('left');
+        } else if (dir.y > 0) {
+          playerTile.setDirection('down');
+        } else if (dir.y < 0) {
+          playerTile.setDirection('up');
+        }
+      }
+      
+      // Set player fractional position to start from previous position for smooth movement
+      playerRef.current.fx = prevX;
+      playerRef.current.fy = prevY;
+    }
+    
     updateCamera(); // Update camera target after player moves
   };
 
@@ -428,6 +477,30 @@ export default function BoulTileWorking() {
       handlePlayerDie // Add the missing onPlayerDie parameter
     );
     
+    // Update player direction if position changed during path following
+    const playerTile = playerTileRef.current;
+    if (playerTile && (playerRef.current.x !== prevX || playerRef.current.y !== prevY)) {
+      const deltaX = playerRef.current.x - prevX;
+      const deltaY = playerRef.current.y - prevY;
+      
+      // Set direction based on movement
+      if (Math.abs(deltaX) >= Math.abs(deltaY)) {
+        // Horizontal movement is dominant
+        if (deltaX > 0) {
+          playerTile.setDirection('right');
+        } else if (deltaX < 0) {
+          playerTile.setDirection('left');
+        }
+      } else {
+        // Vertical movement is dominant
+        if (deltaY > 0) {
+          playerTile.setDirection('down');
+        } else if (deltaY < 0) {
+          playerTile.setDirection('up');
+        }
+      }
+    }
+    
     // Update the main pathRef with the modified current path
     if (pathRef.current && pathRef.current.length > 0) {
       pathRef.current[selectedPathIndexRef.current] = currentPathRef.current;
@@ -455,6 +528,12 @@ export default function BoulTileWorking() {
 
   const handleClick = (e) => {
     unlockAudio();
+    
+    // Reset idle timer on any click
+    const tile = playerTileRef.current;
+    if (tile) {
+      tile.resetIdleTimer();
+    }
     
     // Ensure canvas has focus for keyboard events
     if (canvasRef.current) {
@@ -519,7 +598,13 @@ function updateViewport(canvas) {
     
     // Set up input handler
     const inputHandler = inputHandlerRef.current;
-    inputHandler.setCallbacks(handleMove, clearPath, handlePathSelect);
+    const resetIdleTimer = () => {
+      const tile = playerTileRef.current;
+      if (tile) {
+        tile.resetIdleTimer();
+      }
+    };
+    inputHandler.setCallbacks(handleMove, clearPath, handlePathSelect, resetIdleTimer);
     
     // Add event listeners
     window.addEventListener('keydown', inputHandler.handleKeyDown);
@@ -563,6 +648,7 @@ function updateViewport(canvas) {
 
     cameraRef.current.targetX = camX;
     cameraRef.current.targetY = camY;
+    
     // If camera is far from target (e.g. on reset), snap to target
     if (Math.abs(cameraRef.current.x - camX) > 2 || Math.abs(cameraRef.current.y - camY) > 2) {
       cameraRef.current.x = camX;
@@ -581,17 +667,20 @@ function updateViewport(canvas) {
       const dt = now - lastTimeRef.current;
       lastTimeRef.current = now;
       
-  // Animate camera each frame
-  const cam = cameraRef.current;
-  const lerp = (a, b, t) => a + (b - a) * t;
-  cam.x = lerp(cam.x, cam.targetX, cam.speed);
-  cam.y = lerp(cam.y, cam.targetY, cam.speed);
+      // Update camera to follow player
+      updateCamera();
+      
+      // Animate camera each frame
+      const cam = cameraRef.current;
+      const lerp = (a, b, t) => a + (b - a) * t;
+      cam.x = lerp(cam.x, cam.targetX, cam.speed);
+      cam.y = lerp(cam.y, cam.targetY, cam.speed);
 
-  // Animate player fractional position
-  const player = playerRef.current;
-  const playerSpeed = 0.25; // Higher = faster interpolation
-  player.fx = lerp(player.fx, player.x, playerSpeed);
-  player.fy = lerp(player.fy, player.y, playerSpeed);
+      // Animate player fractional position
+      const player = playerRef.current;
+      const playerSpeed = 0.25; // Back to original speed
+      player.fx = lerp(player.fx, player.x, playerSpeed);
+      player.fy = lerp(player.fy, player.y, playerSpeed);
 
       // Update rock physics
       updateRocks(dt, rockFallCooldownRef, gridRef, handlePlayerDie);
@@ -610,6 +699,7 @@ function updateViewport(canvas) {
           if (currentPath.length > 0) {
             stepPlayer();
             moveCooldownRef.current = PLAYER_MOVE_COOLDOWN;
+            // Don't mark for redraw on every automatic move - let the 100ms timer handle it
           }
         }
       }
