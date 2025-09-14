@@ -8,16 +8,17 @@ export {
   DirtTile, 
   RockTile, 
   DiamondTile, 
-  PlayerTile 
-} from './GameTiles';
-export { 
+  PlayerTile,
   HeavyRockTile, 
   BouncyRockTile, 
   BalloonTile, 
   LavaTile, 
   RubyCrystalTile, 
-  EmeraldCrystalTile 
-} from './SpecialTiles';
+  EmeraldCrystalTile,
+  ExplosionDiamondTile 
+} from './GameTiles';
+
+// 
 export { TileFactory, tileFactory, TileGridUtils } from './TileFactory';
 
 // Quick start example:

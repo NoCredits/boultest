@@ -1,14 +1,12 @@
-import { EmptyTile, WallTile, DirtTile, RockTile, DiamondTile, PlayerTile } from './GameTiles';
-import { 
-  HeavyRockTile, 
+
+import { EmptyTile, WallTile, DirtTile, RockTile, DiamondTile, PlayerTile,  HeavyRockTile, 
   BouncyRockTile, 
   BalloonTile, 
   LavaTile, 
   RubyCrystalTile, 
   EmeraldCrystalTile,
   ExplosionDiamondTile
-} from './SpecialTiles';
-
+ } from './GameTiles';
 /**
  * Tile Factory - Creates and manages all tile types
  * Provides easy extensibility for new tile types
