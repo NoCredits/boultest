@@ -7,7 +7,8 @@ export const TILE = {
   DIAMOND: 4, 
   PLAYER: 5,
   BALLOON: 6,
-  EXPLOSION_DIAMOND: 7
+  EXPLOSION_DIAMOND: 7,
+  LAVA: 8
 };
 
 export const TILE_COLORS = {
@@ -18,7 +19,8 @@ export const TILE_COLORS = {
   [TILE.DIAMOND]: '#0ff',
   [TILE.PLAYER]: '#ff0',
   [TILE.BALLOON]: '#ff0080',
-  [TILE.EXPLOSION_DIAMOND]: '#ff6600'
+  [TILE.EXPLOSION_DIAMOND]: '#ff6600',
+  [TILE.LAVA]: '#FF4500'
 };
 
 export const GAME_CONFIG = {

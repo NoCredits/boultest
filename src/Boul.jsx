@@ -151,7 +151,8 @@ export default function Boul() {
         // Clear all paths when path following is complete
         pathRef.current = [];
         selectedPathIndexRef.current = 0;
-      }
+      },
+      handlePlayerDie // Add the missing onPlayerDie parameter
     );
     
     // Update the main pathRef with the modified current path

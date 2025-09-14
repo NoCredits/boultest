@@ -4,7 +4,7 @@ import { index, inBounds, playDiamondSound, playMoveSound, playRockFallSound } f
 
 const { cols, rows } = GAME_CONFIG;
 
-export function doMove(key, playerRef, gridRef, onScoreUpdate, onLevelComplete, updateRocks) {
+export function doMove(key, playerRef, gridRef, onScoreUpdate, onLevelComplete, updateRocks, onPlayerDie) {
   const player = playerRef.current;
 
   const dir = getDirection(key);
@@ -55,6 +55,14 @@ export function doMove(key, playerRef, gridRef, onScoreUpdate, onLevelComplete, 
     console.log('Explosion Diamond collected! +5 points!');
     onScoreUpdate(prevScore => prevScore + 5); // Higher value for special diamonds
   }
+
+  // Handle lava - player dies if stepping into lava
+  if (targetTile === TILE.LAVA) {
+    // Don't execute the move, just kill the player
+    console.log('Player stepped in lava!');
+    onPlayerDie(); // This should be passed as a parameter
+    return; // Exit early, don't complete the move
+  }
 if (targetTile === TILE.DIRT) playMoveSound();
   // Execute move
   gridRef.current[index(player.x, player.y)] = TILE.EMPTY;
@@ -73,7 +81,7 @@ if (targetTile === TILE.DIRT) playMoveSound();
   }
 }
 
-export function stepPlayerAlongPath(pathRef, playerRef, gridRef,  onScoreUpdate, onLevelComplete, onPathComplete) {
+export function stepPlayerAlongPath(pathRef, playerRef, gridRef,  onScoreUpdate, onLevelComplete, onPathComplete, onPlayerDie) {
   if (pathRef.current.length === 0) {
     onPathComplete();
     return;
@@ -87,6 +95,15 @@ export function stepPlayerAlongPath(pathRef, playerRef, gridRef,  onScoreUpdate,
   if (t === TILE.WALL || t === TILE.ROCK) {
     pathRef.current = [];
     onPathComplete();
+    return;
+  }
+
+  // Handle lava - player dies if stepping into lava
+  if (t === TILE.LAVA) {
+    pathRef.current = []; // Clear remaining path
+    onPathComplete();
+    console.log('Player stepped in lava during pathfinding!');
+    onPlayerDie();
     return;
   }
   // Handle diamond collection
@@ -158,4 +175,59 @@ export function handlePlayerDeath(playerRef, gridRef, onLifeLost, onPathClear) {
 
   // Update lives
   onLifeLost();
+}
+
+// Global timer for lava spreading
+let lastLavaSpread = Date.now();
+
+export function updateLavaSpread(gridRef) {
+  const now = Date.now();
+  
+  // Only spread lava every 10 seconds
+  if (now - lastLavaSpread < 10000) {
+    return;
+  }
+  
+  lastLavaSpread = now;
+  const grid = gridRef.current;
+  const newLavaPositions = [];
+  
+  // Find all current lava tiles
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      if (grid[index(x, y)] === TILE.LAVA) {
+        // Check adjacent empty tiles for potential spread
+        const neighbors = [
+          { x: x - 1, y: y },     // left
+          { x: x + 1, y: y },     // right
+          { x: x, y: y - 1 },     // up
+          { x: x, y: y + 1 }      // down
+        ];
+        
+        neighbors.forEach(neighbor => {
+          if (inBounds(neighbor.x, neighbor.y)) {
+            const neighborIndex = index(neighbor.x, neighbor.y);
+            const neighborTile = grid[neighborIndex];
+            
+            // Lava can spread to empty tiles or dirt (but not walls, rocks, diamonds, or player)
+            if (neighborTile === TILE.EMPTY || neighborTile === TILE.DIRT) {
+              // Only 20% chance to spread to each eligible neighbor
+              if (Math.random() < 0.2) {
+                newLavaPositions.push(neighborIndex);
+              }
+            }
+          }
+        });
+      }
+    }
+  }
+  
+  // Apply the new lava spread
+  newLavaPositions.forEach(pos => {
+    grid[pos] = TILE.LAVA;
+  });
+  
+  if (newLavaPositions.length > 0) {
+    console.log(`Lava spread to ${newLavaPositions.length} new tiles!`);
+  }
 }

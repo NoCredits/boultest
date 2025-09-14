@@ -1,10 +1,10 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { GAME_CONFIG } from './GameConstants';
-import { createLevel } from './LevelGenerator';
+import { createLevel, createClassicBoulderDashLevel } from './LevelGenerator';
 import { drawGame } from './GameRenderer';
 import { updateRocks, updateBalloons } from './GamePhysics';
 import { InputHandler } from './InputHandler';
-import { doMove, stepPlayerAlongPath, handlePlayerDeath } from './GameLogic.jsx';
+import { doMove, stepPlayerAlongPath, handlePlayerDeath, updateLavaSpread } from './GameLogic.jsx';
 import { handleCanvasClick, getCurrentPath, selectNextPath, selectPath, handleCanvasMouseMove } from './ClickHandler';
 import GameUI from './GameUI';
 import './Boul.css';
@@ -48,7 +48,7 @@ export default function BoulTileWorking() {
 
   // Initialize game
   const initializeGame = () => {
-    const { grid, playerPos } = createLevel();
+    const { grid, playerPos } = createClassicBoulderDashLevel();
   gridRef.current = grid;
   playerRef.current = { ...playerPos, fx: playerPos.x, fy: playerPos.y };
     // Initialize player tile
@@ -126,7 +126,8 @@ export default function BoulTileWorking() {
       4: 'diamond',   // Diamond
       5: 'player',    // Player
       6: 'balloon',   // Balloon
-      7: 'explosion_diamond'  // Explosion Diamond
+      7: 'explosion_diamond',  // Explosion Diamond
+      8: 'lava'       // Lava
     };
     
     // Calculate viewport bounds
@@ -354,7 +355,8 @@ export default function BoulTileWorking() {
       gridRef, 
       setScore, 
       (newScore) => showLevelComplete(newScore),
-      (dt) => updateRocks(dt, rockFallCooldownRef, gridRef, handlePlayerDie)
+      (dt) => updateRocks(dt, rockFallCooldownRef, gridRef, handlePlayerDie),
+      handlePlayerDie
     );
     // Set player fractional target to new position
     playerRef.current.fx = prevX;
@@ -422,7 +424,8 @@ export default function BoulTileWorking() {
         // Clear all paths when path following is complete
         pathRef.current = [];
         selectedPathIndexRef.current = 0;
-      }
+      },
+      handlePlayerDie // Add the missing onPlayerDie parameter
     );
     
     // Update the main pathRef with the modified current path
@@ -595,6 +598,9 @@ function updateViewport(canvas) {
       
       // Update balloon physics
       updateBalloons(dt, balloonFloatCooldownRef, gridRef);
+      
+      // Update lava spreading (very slow)
+      updateLavaSpread(gridRef);
 
       // Handle path following
       moveCooldownRef.current -= dt;
