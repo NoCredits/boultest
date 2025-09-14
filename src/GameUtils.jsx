@@ -1,3 +1,6 @@
+export function fromIndex(idx) {
+  return coordsFromIndex(idx);
+}
 import { GAME_CONFIG } from './GameConstants';
 import { MOVESOUND, DIAMONDSOUND, ROCKFALLSOUND, DIAMONDFALLSOUND } from './GameConstants';
 

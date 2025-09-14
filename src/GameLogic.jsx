@@ -52,6 +52,10 @@ export function doMove(key, playerRef, gridRef, onScoreUpdate, onLevelComplete, 
       gridRef.current[index(tx, ty)] = TILE.EMPTY;
       gridRef.current[index(player.x, player.y)] = TILE.EMPTY;
 
+      // Mark the pushed balloon as having just moved (so it will explode on collision)
+      if (!window.balloonStates) window.balloonStates = new Map();
+      window.balloonStates.set(`${pushX},${pushY}`, { justMoved: true });
+
       player.x = tx;
       player.y = ty;
       gridRef.current[index(player.x, player.y)] = TILE.PLAYER;

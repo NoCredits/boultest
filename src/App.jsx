@@ -34,20 +34,6 @@ function App() {
             📊 Original
           </button>
           <button 
-            onClick={() => setCurrentVersion('tiles')}
-            style={{
-              padding: '8px 16px',
-              fontSize: '14px',
-              backgroundColor: currentVersion === 'tiles' ? '#4CAF50' : '#ddd',
-              color: currentVersion === 'tiles' ? 'white' : 'black',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer'
-            }}
-          >
-            🎨 Tile Demo
-          </button>
-          <button 
             onClick={() => setCurrentVersion('enhanced')}
             style={{
               padding: '8px 16px',
@@ -72,46 +58,6 @@ function App() {
       </div>
       
       {renderCurrentVersion()}
-      
-      <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '5px' }}>
-        <h3>🎮 Boulder Dash Versions:</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginTop: '10px' }}>
-          <div>
-            <h4>📊 Original:</h4>
-            <ul style={{ fontSize: '12px', lineHeight: '1.4' }}>
-              <li>✅ Full game functionality</li>
-              <li>✅ Grid-based rendering</li>
-              <li>✅ Pathfinding system</li>
-              <li>✅ Original graphics & starfield</li>
-              <li>🛡️ Preserved as reference</li>
-            </ul>
-          </div>
-          <div>
-            <h4>🎨 Tile Demo:</h4>
-            <ul style={{ fontSize: '12px', lineHeight: '1.4' }}>
-              <li>✅ Object-oriented tile classes</li>
-              <li>✅ Separated entity logic</li>
-              <li>✅ Enhanced graphics showcase</li>
-              <li>✅ Clean architecture demo</li>
-              <li>🧪 Development sandbox</li>
-            </ul>
-          </div>
-          <div>
-            <h4>✨ Enhanced Game:</h4>
-            <ul style={{ fontSize: '12px', lineHeight: '1.4' }}>
-              <li>🎯 Production-ready version</li>
-              <li>✅ Tile-based OOP architecture</li>
-              <li>✅ Enhanced visuals & animations</li>
-              <li>✅ Animated directional player</li>
-              <li>✅ All original features + more</li>
-            </ul>
-          </div>
-        </div>
-        <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#e8f5e8', borderRadius: '5px' }}>
-          <strong>🚀 Recommended:</strong> Use <em>"Enhanced Game"</em> for the full experience with object-oriented tile classes, 
-          enhanced graphics, animated player, and all the improvements while preserving the original gameplay.
-        </div>
-      </div>
     </div>
   );
 }

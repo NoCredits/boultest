@@ -389,22 +389,20 @@ export default function BoulTileWorking() {
     );
     
     // Update player direction if position actually changed (successful move)
-    const playerTile = playerTileRef.current;
-    if (playerTile && (playerRef.current.x !== prevX || playerRef.current.y !== prevY)) {
+    if (tile && (playerRef.current.x !== prevX || playerRef.current.y !== prevY)) {
       // Get direction from the key press
       const dir = getDirection(key);
       if (dir) {
         if (dir.x > 0) {
-          playerTile.setDirection('right');
+          tile.setDirection('right');
         } else if (dir.x < 0) {
-          playerTile.setDirection('left');
+          tile.setDirection('left');
         } else if (dir.y > 0) {
-          playerTile.setDirection('down');
+          tile.setDirection('down');
         } else if (dir.y < 0) {
-          playerTile.setDirection('up');
+          tile.setDirection('up');
         }
       }
-      
       // Set player fractional position to start from previous position for smooth movement
       playerRef.current.fx = prevX;
       playerRef.current.fy = prevY;

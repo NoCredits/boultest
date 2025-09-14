@@ -108,11 +108,8 @@ const worldY = Math.floor(cameraRef.current.y + screenY / GAME_CONFIG.tileSize);
     const clickedPathIndex = getClickedPathIndex(worldX, worldY, pathRef);
     
     // Handle pathfinding
-    console.log('Click at:', worldX, worldY, 'Destination:', selectedDestRef.current);
-    
     if (selectedDestRef.current && selectedDestRef.current.x === worldX && selectedDestRef.current.y === worldY) {
       // Clicking on destination: Always activate a path
-      console.log('Destination match! Activating path');
       isPathActiveRef.current = true;
       selectedDestRef.current = null;
       
@@ -140,7 +137,6 @@ const worldY = Math.floor(cameraRef.current.y + screenY / GAME_CONFIG.tileSize);
       return;
     } else {
       // First click: Preview multiple paths
-      console.log('Generating paths for destination:', worldX, worldY);
       const destination = { x: worldX, y: worldY };
       let paths = [];
       
@@ -162,8 +158,6 @@ const worldY = Math.floor(cameraRef.current.y + screenY / GAME_CONFIG.tileSize);
           break;
       }
       
-      console.log('Generated', paths.length, 'paths');
-      
       // Store all paths and IMMEDIATELY set selected path index to 0
       pathRef.current = paths;
       isPathActiveRef.current = false;
@@ -173,7 +167,6 @@ const worldY = Math.floor(cameraRef.current.y + screenY / GAME_CONFIG.tileSize);
       
       // CRITICAL: Set destination IMMEDIATELY and synchronously BEFORE onDraw
       selectedDestRef.current = { x: worldX, y: worldY };
-      console.log('Set destination to:', selectedDestRef.current);
       
       // If no valid paths found, clear existing paths
       if (paths.length === 0 && clearPath) {

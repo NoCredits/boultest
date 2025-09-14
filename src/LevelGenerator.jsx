@@ -197,6 +197,15 @@ export function createClassicBoulderDashLevel() {
     }
   });
 
+    // Initialize balloonStates for all balloons (so they explode correctly)
+    if (typeof window !== 'undefined') {
+      if (!window.balloonStates) window.balloonStates = new Map();
+      balloons.forEach(pos => {
+        const key = `${pos.x},${pos.y}`;
+        window.balloonStates.set(key, { justMoved: true });
+      });
+    }
+
   // Place player at starting position (top-left, like in original)
   const playerPos = { x: 2, y: 2 };
   grid[index(playerPos.x, playerPos.y)] = TILE.PLAYER;

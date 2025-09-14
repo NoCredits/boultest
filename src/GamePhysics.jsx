@@ -1,6 +1,6 @@
 import { physicsManager } from './PhysicsManager';
 import { TILE, GAME_CONFIG } from './GameConstants';
-import { index } from './GameUtils';
+import { index, fromIndex, inBounds } from './GameUtils';
 
 const { rows, cols } = GAME_CONFIG;
 
@@ -98,7 +98,7 @@ export function updateBalloons(dt, balloonFloatCooldownRef, gridRef) {
       
       // Update balloon state tracking
       window.balloonStates.delete(move.balloonKey);
-      window.balloonStates.set(move.newKey, { justMoved: move.justMoved });
+      window.balloonStates.set(move.newKey, { justMoved: true });
     }
   });
 } 
