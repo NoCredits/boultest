@@ -1,5 +1,5 @@
 import { Tile } from './Tile';
-import { TILE, ANIMATION_SPEEDS } from '../GameConstants';
+import { TILE } from '../GameConstants';
 
 /**
  * Balloon - floats upward instead of falling
@@ -15,16 +15,13 @@ export class BalloonTile extends Tile {
 
   animate(deltaTime, gameState) {
     super.animate(deltaTime, gameState);
-    // Use consistent animationTime with proper frequency calculation
-    const floatFrequency = 1000 / ANIMATION_SPEEDS.BALLOON_FLOAT_CYCLE; // ~0.167 Hz for 6000ms cycle
-    const floatTime = this.animationTime * floatFrequency / 1000; // Scale to reasonable animation range
-    this.properties.floatOffset = Math.sin(floatTime) * 2;
+    this.floatPhase += deltaTime * 0.002;
   }
 
   draw(ctx, pixelX, pixelY, tileSize, gameState, grid, cols, mapX, mapY) {
     const centerX = pixelX + tileSize / 2;
     const centerY = pixelY + tileSize / 2;
-    const floatOffset = this.properties.floatOffset || 0;
+    const floatOffset = Math.sin(this.floatPhase) * 2;
     
     // Balloon body
     ctx.fillStyle = this.properties.color;
@@ -64,6 +61,23 @@ export class BalloonTile extends Tile {
     // Don't start new movement if already moving smoothly
     if (this.isMoving) {
       return null;
+    }
+    
+    // Check if we're at the top edge
+    if (this.y - 1 < 0) {
+      // Hit top of map - explode if moved last frame
+      if (this.justMoved) {
+        const result = {
+          from: { x: this.x, y: this.y },
+          to: { x: this.x, y: this.y },
+          explode: true
+        };
+        this.justMoved = false;
+        return result;
+      } else {
+        this.justMoved = false;
+        return null;
+      }
     }
     
     const aboveIndex = (this.y - 1) * cols + this.x;

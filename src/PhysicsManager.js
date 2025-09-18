@@ -16,6 +16,7 @@ export class PhysicsManager {
     this.rockFallCooldown = 0;
     this.balloonFloatCooldown = 0;
     this.tileInstanceMap = new Map(); // Cache tile instances by grid position
+    this.balloonStates = new Map(); // Track balloon movement states across frames
   }
 
   /**
@@ -41,7 +42,15 @@ export class PhysicsManager {
       case TILE.ROCK: tile = new RockTile(x, y); break;
       case TILE.DIAMOND: tile = new DiamondTile(x, y); break;
       case TILE.PLAYER: tile = new PlayerTile(x, y); break;
-      case TILE.BALLOON: tile = new BalloonTile(x, y); break;
+      case TILE.BALLOON: 
+        tile = new BalloonTile(x, y); 
+        // Restore balloon state from previous frame
+        const balloonKey = `${x},${y}`;
+        const balloonState = this.balloonStates.get(balloonKey);
+        if (balloonState) {
+          tile.justMoved = balloonState.justMoved;
+        }
+        break;
       case TILE.EXPLOSION_DIAMOND: tile = new ExplosionDiamondTile(x, y); break;
       case TILE.LAVA: tile = new LavaTile(x, y); break;
       default: tile = new EmptyTile(x, y); break;
@@ -61,8 +70,8 @@ export class PhysicsManager {
     // Update rock/diamond physics
     this.updateFallingTiles(deltaTime, gridRef, onPlayerDie);
     
-    // Note: Balloon physics are handled in GamePhysics.jsx updateBalloons()
-    // to avoid duplication and ensure consistent timing
+    // Update balloon physics
+    this.updateFloatingTiles(deltaTime, gridRef, onPlayerDie);
   }
 
   /**
@@ -97,21 +106,15 @@ export class PhysicsManager {
 
   /**
    * Update physics for balloons (floating tiles)
-   * NOTE: This method is currently disabled to avoid duplication.
-   * Balloon physics are handled in GamePhysics.jsx updateBalloons()
    */
-  updateFloatingTiles(deltaTime, gridRef) {
-    // Disabled - using GamePhysics.jsx updateBalloons() instead
-    return;
-    
-    /*
+  updateFloatingTiles(deltaTime, gridRef, onPlayerDie) {
     this.balloonFloatCooldown -= deltaTime;
     if (this.balloonFloatCooldown > 0) return;
     
     this.balloonFloatCooldown = GAME_CONFIG.ROCK_FALL_INTERVAL; // Same timing as rocks
     const grid = gridRef.current;
     
-    // Process from top to bottom for balloons
+    // Process from top to bottom for balloons (they float upward)
     for (let y = 1; y < rows - 1; y++) {
       for (let x = 1; x < cols - 1; x++) {
         const id = y * cols + x;
@@ -125,11 +128,14 @@ export class PhysicsManager {
         
         if (physicsResult) {
           // Apply the physics movement
-          this.applyPhysicsResult(physicsResult, grid);
+          this.applyPhysicsResult(physicsResult, grid, onPlayerDie);
+        } else {
+          // Balloon didn't move this frame - clear its justMoved state
+          const balloonKey = `${x},${y}`;
+          this.balloonStates.set(balloonKey, { justMoved: false });
         }
       }
     }
-    */
   }
 
   /**
@@ -146,16 +152,30 @@ export class PhysicsManager {
     if (explode) {
       // Balloon explosion
       grid[fromId] = TILE.EXPLOSION_DIAMOND;
+      // Remove balloon state
+      this.balloonStates.delete(`${from.x},${from.y}`);
     } else if (smoothMovement) {
       // For smooth movement, only update grid when movement is complete
       // The tile instance handles visual interpolation
       // Grid changes will be applied when movement finishes
       grid[toId] = grid[fromId];
       grid[fromId] = TILE.EMPTY;
+      
+      // Update balloon state tracking for movement
+      if (grid[toId] === TILE.BALLOON) {
+        this.balloonStates.delete(`${from.x},${from.y}`);
+        this.balloonStates.set(`${to.x},${to.y}`, { justMoved: true });
+      }
     } else {
       // Instant movement (legacy behavior)
       grid[toId] = grid[fromId];
       grid[fromId] = TILE.EMPTY;
+      
+      // Update balloon state tracking for movement
+      if (grid[toId] === TILE.BALLOON) {
+        this.balloonStates.delete(`${from.x},${from.y}`);
+        this.balloonStates.set(`${to.x},${to.y}`, { justMoved: true });
+      }
     }
     
     // Play sound if specified
