@@ -1,5 +1,5 @@
 import { Tile } from './Tile';
-import { TILE } from '../GameConstants';
+import { TILE, ANIMATION_SPEEDS } from '../GameConstants';
 import { playRockFallSound } from '../GameUtils';
 
 /**
@@ -16,9 +16,9 @@ export class RockTile extends Tile {
     super.animate(deltaTime, gameState);
     // Add subtle bobbing when falling
     if (this.isFalling) {
-      // Use gameState time like DiamondTile for consistent timing with large divisor
-      const currentTime = (gameState && gameState.time) || performance.now();
-      const fallTime = currentTime / 4000; // 4 second fall bobbing cycle
+      // Use consistent animationTime with proper frequency calculation
+      const fallFrequency = 1000 / ANIMATION_SPEEDS.ROCK_FALL_BOBBING_CYCLE; // 0.25 Hz for 4000ms cycle
+      const fallTime = this.animationTime * fallFrequency / 1000; // Scale to reasonable animation range
       this.properties.fallOffset = Math.sin(fallTime) * 2;
     }
   }

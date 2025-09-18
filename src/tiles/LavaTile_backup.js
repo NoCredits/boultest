@@ -1,8 +1,5 @@
 import { Tile } from './Tile';
-
-// Global slow time counter for lava animation
-let lavaSlowTime = 0;
-let lastLavaUpdate = Date.now();
+import { ANIMATION_SPEEDS } from '../GameConstants';
 
 /**
  * Moving Lava - animated liquid that spreads
@@ -20,21 +17,19 @@ export class LavaTile extends Tile {
 
   animate(deltaTime, gameState) {
     super.animate(deltaTime, gameState);
-    // No animation needed - we'll use static phases
+    // Calculate wave timing for use in draw method
+    const lavaTime = this.animationTime / ANIMATION_SPEEDS.LAVA_WAVE_CYCLE;
+    this.properties.lavaTime = lavaTime;
   }
 
   draw(ctx, pixelX, pixelY, tileSize, gameState, grid, cols, mapX, mapY) {
-    // Update global slow time only every 200ms
-    const now = Date.now();
-    if (now - lastLavaUpdate > 200) {
-      lavaSlowTime += 0.1;
-      lastLavaUpdate = now;
-    }
+    // Use consistent animationTime for all tile animations
+    const lavaTime = this.properties.lavaTime || 0;
     
     // Add the slow time to the static phases
-    const wave1 = Math.sin(this.wavePhase + lavaSlowTime) * 0.3;
-    const wave2 = Math.sin(this.wavePhase2 + lavaSlowTime * 0.7 + Math.PI/3) * 0.25;
-    const wave3 = Math.sin(this.wavePhase3 + lavaSlowTime * 1.3 + Math.PI/2) * 0.2;
+    const wave1 = Math.sin(this.wavePhase + lavaTime) * 0.3;
+    const wave2 = Math.sin(this.wavePhase2 + lavaTime * 0.7 + Math.PI/3) * 0.25;
+    const wave3 = Math.sin(this.wavePhase3 + lavaTime * 1.3 + Math.PI/2) * 0.2;
     
     // Check neighboring tiles for lava connections
     const neighbors = {
@@ -82,9 +77,9 @@ export class LavaTile extends Tile {
       
       // Reduce organic variation when connecting to preserve connections
       const organicVariation = radiusMultiplier > 1.0 ? 
-        Math.sin(angle * 3 + lavaSlowTime) * 1 : // Less variation when connecting
-        Math.sin(angle * 3 + lavaSlowTime) * 2 + 
-        Math.sin(angle * 5 + lavaSlowTime * 1.5) * 1.5 +
+        Math.sin(angle * 3 + lavaTime) * 1 : // Less variation when connecting
+        Math.sin(angle * 3 + lavaTime) * 2 + 
+        Math.sin(angle * 5 + lavaTime * 1.5) * 1.5 +
         Math.sin(angle * 7 + this.wavePhase) * 1;
       
       const radius = baseRadius * radiusMultiplier + organicVariation;
@@ -262,14 +257,7 @@ export class LavaTile extends Tile {
     return false; // Can move through but deadly
   }
 
-  /**
-   * Check if this tile kills player on contact
-   */
-  isDeadly() {
-    return true;
-  }
-
   getBaseColor() {
-    return '#FF4500'; // Orange-red
+    return '#FF4500';
   }
 }

@@ -37,6 +37,17 @@ export const GAME_CONFIG = {
   MAX_VIEWPORT_TILES_Y: 15, // can be adjusted dynamically, based on window aspect ratio
 };
 
+// Animation timing constants - easy to adjust animation speeds
+export const ANIMATION_SPEEDS = {
+  DIAMOND_SPARKLE_CYCLE: 1000,    // 1 second for diamond sparkle cycle
+  BALLOON_FLOAT_CYCLE: 6000,      // 6 seconds for balloon floating animation  
+  ROCK_FALL_BOBBING_CYCLE: 4000,  // 4 seconds for rock fall bobbing
+  DIRT_PARTICLE_CYCLE: 2000,      // 2 seconds for dirt particle movement
+  LAVA_WAVE_CYCLE: 3000,          // 3 seconds for lava wave animation
+  PLAYER_WALK_CYCLE: 800,         // 0.8 seconds for player walk cycle
+  EXPLOSION_PULSE_CYCLE: 1500,    // 1.5 seconds for explosion diamond pulsing
+};
+
 export const MOVESOUND = new Audio('/sounds/move.mp3');
 export const DIAMONDSOUND = new Audio('/sounds/diamond.mp3');
 export const ROCKFALLSOUND = new Audio('/sounds/rockfall.mp3');

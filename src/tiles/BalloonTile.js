@@ -1,5 +1,5 @@
 import { Tile } from './Tile';
-import { TILE } from '../GameConstants';
+import { TILE, ANIMATION_SPEEDS } from '../GameConstants';
 
 /**
  * Balloon - floats upward instead of falling
@@ -15,9 +15,9 @@ export class BalloonTile extends Tile {
 
   animate(deltaTime, gameState) {
     super.animate(deltaTime, gameState);
-    // Use gameState time like DiamondTile for consistent timing with much larger divisor
-    const currentTime = (gameState && gameState.time) || performance.now();
-    const floatTime = currentTime / 6000; // 6 second float cycle
+    // Use consistent animationTime with proper frequency calculation
+    const floatFrequency = 1000 / ANIMATION_SPEEDS.BALLOON_FLOAT_CYCLE; // ~0.167 Hz for 6000ms cycle
+    const floatTime = this.animationTime * floatFrequency / 1000; // Scale to reasonable animation range
     this.properties.floatOffset = Math.sin(floatTime) * 2;
   }
 

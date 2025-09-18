@@ -1,4 +1,5 @@
 import { Tile } from './Tile';
+import { ANIMATION_SPEEDS } from '../GameConstants';
 
 /**
  * Player Tile - the controllable character with directional animation
@@ -12,23 +13,21 @@ export class PlayerTile extends Tile {
     this.lastX = x;
     this.lastY = y;
     this.lastDirectionChange = 0;
-    this.lastInputTime = performance.now(); // Simple: last time user did ANYTHING
+    this.idleAnimationTime = 0; // Track idle time using animation system
     this.sleepState = 'awake'; // 'awake' or 'sleeping'
   }
 
   animate(deltaTime, gameState) {
     super.animate(deltaTime, gameState);
     
-    const currentTime = performance.now();
-    
     // Use the smooth movement system's isMoving state instead of position checking
     // (The base class handles the smooth movement animation)
 
-    // Simple idle calculation
-    const idleTime = currentTime - this.lastInputTime;
+    // Simple idle calculation using animation time
+    this.idleAnimationTime += deltaTime;
     
     // Update sleep state (only transition to sleeping, never back to awake without input)
-    if (idleTime > 30000 && this.sleepState === 'awake') {
+    if (this.idleAnimationTime > 30000 && this.sleepState === 'awake') {
       this.sleepState = 'sleeping';
     }
     
@@ -37,18 +36,19 @@ export class PlayerTile extends Tile {
       // Override everything when sleeping
       this.properties.expression = 'sleeping';
       this.properties.eyeBlink = 0.2; // Closed eyes
-      this.properties.breatheOffset = Math.round(Math.sin(currentTime / 4000) * 0.3); // Gentle sleep breathing
+      this.properties.breatheOffset = Math.round(Math.sin(this.animationTime / 4000) * 0.3); // Gentle sleep breathing
     } else if (this.isMoving) {
       // Simple, nice walking animation
-      const walkTime = currentTime / 2000; // 2 second walking cycle - nice pace
+      const walkFrequency = 1000 / ANIMATION_SPEEDS.PLAYER_WALK_CYCLE; // 1.25 Hz for 800ms cycle
+      const walkTime = this.animationTime * walkFrequency / 1000; // Scale to reasonable animation range
       this.properties.walkBob = Math.round(Math.sin(walkTime) * 1); // Simple 1 pixel bob
       
       // Single occasional blink while walking (every 4 seconds)
-      const blinkTime = (currentTime % 4000) / 4000; // Reset every 4 seconds
+      const blinkTime = (this.animationTime % 4000) / 4000; // Reset every 4 seconds
       this.properties.eyeBlink = (blinkTime > 0.1 && blinkTime < 0.15) ? 0.2 : 1; // Single quick blink
       
       // Facial expressions while moving (less frequent)
-      const expressionTime = (currentTime % 10000) / 10000; // Every 10 seconds
+      const expressionTime = (this.animationTime % 10000) / 10000; // Every 10 seconds
       if (expressionTime > 0.1 && expressionTime < 0.15) {
         this.properties.expression = 'thinking';
       } else if (expressionTime > 0.6 && expressionTime < 0.65) {
@@ -58,15 +58,15 @@ export class PlayerTile extends Tile {
       }
     } else {
       // Simple, calm idle animation (awake only)
-      const breatheTime = currentTime / 4000; // 4 second breathing cycle
-      const blinkTime = (currentTime % 5000) / 5000; // Reset every 5 seconds
+      const breatheTime = this.animationTime / 4000; // 4 second breathing cycle
+      const blinkTime = (this.animationTime % 5000) / 5000; // Reset every 5 seconds
       
       this.properties.breatheOffset = Math.round(Math.sin(breatheTime) * 0.5); // Gentle breathing
       // Single occasional blink when idle
       this.properties.eyeBlink = (blinkTime > 0.1 && blinkTime < 0.15) ? 0.2 : 1;
       
       // Normal idle expressions (awake)
-      const expressionTime = (currentTime % 15000) / 15000; // Every 15 seconds
+      const expressionTime = (this.animationTime % 15000) / 15000; // Every 15 seconds
       if (expressionTime > 0.1 && expressionTime < 0.15) {
         this.properties.expression = 'thinking';
       } else if (expressionTime > 0.3 && expressionTime < 0.35) {
@@ -88,7 +88,7 @@ export class PlayerTile extends Tile {
 
   // Simple reset - called on ANY user input
   resetIdleTimer() {
-    this.lastInputTime = performance.now();
+    this.idleAnimationTime = 0; // Reset idle timer using animation system
     this.sleepState = 'awake'; // Wake up on any input
   }
 

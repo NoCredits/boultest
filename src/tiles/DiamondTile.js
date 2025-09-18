@@ -1,5 +1,5 @@
 import { Tile } from './Tile';
-import { TILE } from '../GameConstants';
+import { TILE, ANIMATION_SPEEDS } from '../GameConstants';
 import { playDiamondFallSound } from '../GameUtils';
 
 /**
@@ -15,14 +15,15 @@ export class DiamondTile extends Tile {
 
   animate(deltaTime, gameState) {
     super.animate(deltaTime, gameState);
-    // No animation needed - we'll use time directly in draw
+    // Calculate sparkle timing for use in draw method using proper frequency
+    const sparkleFrequency = 1000 / ANIMATION_SPEEDS.DIAMOND_SPARKLE_CYCLE; // 1 Hz for 1000ms cycle
+    const slowTime = this.animationTime * sparkleFrequency / 1000; // Scale to reasonable animation range
+    this.properties.sparkleTime = slowTime;
   }
 
   draw(ctx, pixelX, pixelY, tileSize, gameState, grid, cols, mapX, mapY) {
-    // Use gameState time directly since tiles are recreated each frame
-    const currentTime = gameState || 0;
-    // Moderate speed for nice sparkle effect
-    const slowTime = currentTime / 1000; // Faster than 5000, but still slower than original
+    // Use consistent animationTime for all tile animations
+    const slowTime = this.properties.sparkleTime || 0;
     
     // Perfect math diamond shape (♦) that touches edges
     const centerX = pixelX + tileSize / 2;
