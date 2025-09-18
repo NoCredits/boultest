@@ -197,14 +197,8 @@ export function createClassicBoulderDashLevel() {
     }
   });
 
-    // Initialize balloonStates for all balloons (so they explode correctly)
-    if (typeof window !== 'undefined') {
-      if (!window.balloonStates) window.balloonStates = new Map();
-      balloons.forEach(pos => {
-        const key = `${pos.x},${pos.y}`;
-        window.balloonStates.set(key, { justMoved: true });
-      });
-    }
+  // Don't initialize balloonStates - let them start as "not moved"
+  // Balloons should only explode after they actually try to move and hit something
 
   // Place player at starting position (top-left, like in original)
   const playerPos = { x: 2, y: 2 };

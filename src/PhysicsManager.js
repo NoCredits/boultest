@@ -61,8 +61,8 @@ export class PhysicsManager {
     // Update rock/diamond physics
     this.updateFallingTiles(deltaTime, gridRef, onPlayerDie);
     
-    // Update balloon physics
-    this.updateFloatingTiles(deltaTime, gridRef);
+    // Note: Balloon physics are handled in GamePhysics.jsx updateBalloons()
+    // to avoid duplication and ensure consistent timing
   }
 
   /**
@@ -97,8 +97,14 @@ export class PhysicsManager {
 
   /**
    * Update physics for balloons (floating tiles)
+   * NOTE: This method is currently disabled to avoid duplication.
+   * Balloon physics are handled in GamePhysics.jsx updateBalloons()
    */
   updateFloatingTiles(deltaTime, gridRef) {
+    // Disabled - using GamePhysics.jsx updateBalloons() instead
+    return;
+    
+    /*
     this.balloonFloatCooldown -= deltaTime;
     if (this.balloonFloatCooldown > 0) return;
     
@@ -123,6 +129,7 @@ export class PhysicsManager {
         }
       }
     }
+    */
   }
 
   /**
