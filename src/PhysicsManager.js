@@ -115,8 +115,9 @@ export class PhysicsManager {
     const grid = gridRef.current;
     
     // Process from top to bottom for balloons (they float upward)
-    for (let y = 1; y < rows - 1; y++) {
-      for (let x = 1; x < cols - 1; x++) {
+    // Include all rows since balloons can be at edges
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
         const id = y * cols + x;
         const tileType = grid[id];
         
