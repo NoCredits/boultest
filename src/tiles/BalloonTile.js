@@ -19,28 +19,34 @@ export class BalloonTile extends Tile {
   }
 
   draw(ctx, pixelX, pixelY, tileSize, gameState, grid, cols, mapX, mapY) {
-    const centerX = pixelX + tileSize / 2;
-    const centerY = pixelY + tileSize / 2;
+    // Use interpolated position for smooth movement
+    let drawX = pixelX + tileSize / 2;
+    let drawY = pixelY + tileSize / 2;
+    if (this.isMoving) {
+      // Interpolate position between grid cells
+      drawX = (this.currentX * tileSize) + tileSize / 2;
+      drawY = (this.currentY * tileSize) + tileSize / 2;
+    }
     const floatOffset = Math.sin(this.floatPhase) * 2;
-    
+
     // Balloon body
     ctx.fillStyle = this.properties.color;
     ctx.beginPath();
-    ctx.arc(centerX, centerY + floatOffset, tileSize * 0.35, 0, Math.PI * 2);
+    ctx.arc(drawX, drawY + floatOffset, tileSize * 0.35, 0, Math.PI * 2);
     ctx.fill();
-    
+
     // Balloon highlight
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.beginPath();
-    ctx.arc(centerX - 3, centerY - 3 + floatOffset, tileSize * 0.1, 0, Math.PI * 2);
+    ctx.arc(drawX - 3, drawY - 3 + floatOffset, tileSize * 0.1, 0, Math.PI * 2);
     ctx.fill();
-    
+
     // String
     ctx.strokeStyle = '#654321';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(centerX, centerY + tileSize * 0.35 + floatOffset);
-    ctx.lineTo(centerX, centerY + tileSize * 0.5 + floatOffset);
+    ctx.moveTo(drawX, drawY + tileSize * 0.35 + floatOffset);
+    ctx.lineTo(drawX, drawY + tileSize * 0.5 + floatOffset);
     ctx.stroke();
   }
 
@@ -87,8 +93,8 @@ export class BalloonTile extends Tile {
     if (aboveTile === TILE.EMPTY) {
       const targetY = this.y - 1;
       
-      // Start smooth upward movement
-      this.startSmoothMovement(this.x, targetY, 200); // 200ms smooth float
+  // Start slow-motion upward movement for testing
+  this.startSmoothMovement(this.x, targetY, 200); // 1200ms slow float
       
       const result = {
         from: { x: this.x, y: this.y },

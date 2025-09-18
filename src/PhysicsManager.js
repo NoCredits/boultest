@@ -108,10 +108,11 @@ export class PhysicsManager {
    * Update physics for balloons (floating tiles)
    */
   updateFloatingTiles(deltaTime, gridRef, onPlayerDie) {
-    this.balloonFloatCooldown -= deltaTime;
-    if (this.balloonFloatCooldown > 0) return;
-    
-    this.balloonFloatCooldown = GAME_CONFIG.ROCK_FALL_INTERVAL; // Same timing as rocks
+  this.balloonFloatCooldown -= deltaTime;
+  if (this.balloonFloatCooldown > 0) return;
+  // Slow-motion: set to 1200ms for testing
+  //this.balloonFloatCooldown = 200;
+  this.balloonFloatCooldown = GAME_CONFIG.ROCK_FALL_INTERVAL;
     const grid = gridRef.current;
     
     // Process from top to bottom for balloons (they float upward)
@@ -155,19 +156,21 @@ export class PhysicsManager {
       grid[fromId] = TILE.EXPLOSION_DIAMOND;
       // Remove balloon state
       this.balloonStates.delete(`${from.x},${from.y}`);
-    } else if (smoothMovement) {
-      // For smooth movement, only update grid when movement is complete
-      // The tile instance handles visual interpolation
-      // Grid changes will be applied when movement finishes
-      grid[toId] = grid[fromId];
-      grid[fromId] = TILE.EMPTY;
+    } 
+    // else if (smoothMovement) {
+    //   // For smooth movement, only update grid when movement is complete
+    //   // The tile instance handles visual interpolation
+    //   // Grid changes will be applied when movement finishes
+    //   grid[toId] = grid[fromId];
+    //   grid[fromId] = TILE.EMPTY;
       
-      // Update balloon state tracking for movement
-      if (grid[toId] === TILE.BALLOON) {
-        this.balloonStates.delete(`${from.x},${from.y}`);
-        this.balloonStates.set(`${to.x},${to.y}`, { justMoved: true });
-      }
-    } else {
+    //   // Update balloon state tracking for movement
+    //   if (grid[toId] === TILE.BALLOON) {
+    //     this.balloonStates.delete(`${from.x},${from.y}`);
+    //     this.balloonStates.set(`${to.x},${to.y}`, { justMoved: true });
+    //   }
+    // } 
+    else {
       // Instant movement (legacy behavior)
       grid[toId] = grid[fromId];
       grid[fromId] = TILE.EMPTY;
